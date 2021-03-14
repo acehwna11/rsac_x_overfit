@@ -1,0 +1,440 @@
+---
+title: "4_niche_breadth"
+author: "JEON"
+date: '2021 3 9 '
+output: html_document
+---
+```{r}
+library(ggcorrplot)
+library(FactoMineR)
+library(factoextra)
+library(vegan)
+library(listviewer)
+library(MicroNiche)
+library(corrr)
+library(mapr)
+library(ggplot2)
+```
+
+```{r}
+map(out_reptile$gbif$data, map_ggplot)
+```
+```{r mapping occurences with mapr::mapggplot}
+map(out_aves$gbif$data, map_ggplot)
+mapr::map_ggplot(out_reptile$gbif$data$Terrapene_carolina, map = "usa", size = 1)
+```
+
+```{r standardized extracted points values}
+standard <- function(x){scale(x, center = T, scale = T)}
+
+standard_amphibian <- extract_spatial_amphibian_lapply %>%  map(.f = scale(., center = T, scale = T))
+standard_amphibian <- map(extract_spatial_amphibian_lapply, standard) 
+standard_amphibian_df <- map(standard_amphibian, as.data.frame)
+
+
+```
+
+
+
+```{r PCA extracted points with FactoMineR::PCA }
+#----------------------------
+# PCA extracted points
+#----------------------------
+list_PCA_mammal <- lapply(
+  extract_spatial_mammal_lapply,
+  function(x){
+    PCA(x)
+  }
+)
+
+list_PCA_reptile <- lapply(
+  extract_spatial_reptile_lapply,
+  function(x){
+    PCA(x)
+  }
+)
+
+list_PCA_amphibian <- lapply(
+  extract_spatial_amphibian_lapply,
+  function(x){
+    PCA(x)
+  }
+)
+
+list_PCA_aves <- lapply(
+  extract_spatial_aves_furrr,
+  function(x){
+    PCA(x)
+  }
+)
+
+```
+
+```{r PCA extracted points from saved}
+#----------------------------
+# PCA extracted points - saved
+#----------------------------
+list_PCA_mammal <- lapply(
+  extract_mammal_saved,
+  function(x){
+    PCA(x)
+  }
+)
+
+list_PCA_reptile <- lapply(
+  extract_reptile_saved,
+  function(x){
+    PCA(x)
+  }
+)
+
+list_PCA_amphibian <- lapply(
+  extract_spatial_amphibian_lapply,
+  function(x){
+    PCA(x)
+  }
+)
+
+list_PCA_aves <- lapply(
+  extract_aves_saved,
+  function(x){
+    PCA(x)
+  }
+)
+
+```
+
+
+```{r PCA for the standardized extracted points value}
+list_PCA_amphibian_standard <- lapply(
+  standard_amphibian,
+  function(x){
+    PCA(x)
+  }
+)
+
+```
+
+```{r caculating niche breadth}
+#----------------------------
+# Niche breadth - 0.05 ~ 0.95
+#----------------------------
+
+cord_out_1 <- list()
+cord_out_2 <- list()
+
+for (i in seq_along(1:length(list_PCA_mammal))){
+  cord_out_1[[i]] <- quantile(list_PCA_mammal[[i]]$ind$coord[,1], c(0.05, .95))
+  cord_out_2[[i]] <- quantile(list_PCA_mammal[[i]]$ind$coord[,2], c(0.05, .95))
+}
+
+cord_mammal_df_pc1 <- do.call(rbind, cord_out_1)
+cord_mammal_df_pc2 <- do.call(rbind, cord_out_2)
+nb_mammal_pc1_df <- abs(cord_mammal_df_pc1[,1]) + cord_mammal_df_pc1[,2]
+nb_mammal_pc2_df <- abs(cord_mammal_df_pc2[,2]) + cord_mammal_df_pc2[,2]
+nb_mammal <- nb_mammal_pc1_df + nb_mammal_pc2_df 
+
+##########################################################
+
+
+
+cord_out_1 <- list()
+cord_out_2 <- list()
+
+for (i in seq_along(1:length(list_PCA_reptile))){
+  cord_out_1[[i]] <- quantile(list_PCA_reptile[[i]]$ind$coord[,1], c(0.05, .95))
+  cord_out_2[[i]] <- quantile(list_PCA_reptile[[i]]$ind$coord[,2], c(0.05, .95))
+}
+
+cord_reptile_df_pc1 <- do.call(rbind, cord_out_1)
+cord_reptile_df_pc2 <- do.call(rbind, cord_out_2)
+nb_reptile_pc1_df <- abs(cord_reptile_df_pc1[,1]) + cord_reptile_df_pc1[,2]
+nb_reptile_pc2_df <- abs(cord_reptile_df_pc2[,2]) + cord_reptile_df_pc2[,2]
+nb_reptile <- nb_reptile_pc1_df + nb_reptile_pc2_df
+
+##########################################################
+
+cord_out_1 <- list()
+cord_out_2 <- list()
+# A for loop to extract the quantiles and same
+for (i in seq_along(1:length(list_PCA_amphibian))){
+  cord_out_1[[i]] <- quantile(list_PCA_amphibian[[i]]$ind$coord[,1], c(0.05, .95))
+  cord_out_2[[i]] <- quantile(list_PCA_amphibian[[i]]$ind$coord[,2], c(0.05, .95))
+}
+
+# Create two corresponding DF's
+cord_amphibian_df_pc1 <- do.call(rbind, cord_out_1)
+cord_amphibian_df_pc2 <- do.call(rbind, cord_out_2)
+nb_amphibian_pc1_df <- abs(cord_amphibian_df_pc1[,1]) + cord_amphibian_df_pc1[,2]
+nb_amphibian_pc2_df <- abs(cord_amphibian_df_pc2[,2]) + cord_amphibian_df_pc2[,2]
+nb_amphibian <- nb_amphibian_pc1_df + nb_amphibian_pc2_df 
+
+##########################################################
+
+cord_out_1 <- list()
+cord_out_2 <- list()
+# A for loop to extract the quantiles and same
+for (i in seq_along(1:length(list_PCA_aves))){
+  cord_out_1[[i]] <- quantile(list_PCA_aves[[i]]$ind$coord[,1], c(0.05, .95))
+  cord_out_2[[i]] <- quantile(list_PCA_aves[[i]]$ind$coord[,2], c(0.05, .95))
+}
+
+# Create two corresponding DF's
+cord_aves_df_pc1 <- do.call(rbind, cord_out_1)
+cord_aves_df_pc2 <- do.call(rbind, cord_out_2)
+nb_aves_pc1_df <- abs(cord_aves_df_pc1[,1]) + cord_aves_df_pc1[,2]
+nb_aves_pc2_df <- abs(cord_aves_df_pc2[,2]) + cord_aves_df_pc2[,2]
+nb_aves <- nb_aves_pc1_df + nb_aves_pc2_df 
+
+##########################################################
+```
+
+```{r niche breadth with standardzied}
+#----------------------------
+# Niche breadth with standardized 
+#----------------------------
+
+cord_out_1 <- list()
+cord_out_2 <- list()
+
+for (i in seq_along(1:length(list_PCA_amphibian_standard))){
+  cord_out_1[[i]] <- quantile(list_PCA_amphibian_standard[[i]]$ind$coord[,1], c(0.05, .95))
+  cord_out_2[[i]] <- quantile(list_PCA_amphibian_standard[[i]]$ind$coord[,2], c(0.05, .95))
+}
+
+cord_amphibian_df_pc1_sd <- do.call(rbind, cord_out_1)
+cord_amphibian_df_pc2_sd <- do.call(rbind, cord_out_2)
+nb_amphibian_pc1_df_sd <- abs(cord_amphibian_df_pc1_sd[,1]) + cord_amphibian_df_pc1_sd[,2]
+nb_amphibian_pc2_df_sd <- abs(cord_amphibian_df_pc2_sd[,2]) + cord_amphibian_df_pc2_sd[,2]
+nb_amphibian_sd <- nb_amphibian_pc1_df_sd + nb_amphibian_pc2_df_sd
+
+```
+
+Do really nb is different with taxons?
+
+```{r save nb}
+nb_aves_df <- data.frame(nb_aves)
+nb_reptile_df <- data.frame(nb_reptile)
+nb_mammal_df <- data.frame(nb_mammal)
+
+write_csv(nb_aves_df, "E:/nichebreadth/nb_aves_df.csv")
+write_csv(nb_reptile_df, "E:/nichebreadth/nb_reptile_df.csv")
+write_csv(nb_mammal_df, "E:/nichebreadth/nb_mammal_df.csv")
+
+```
+
+```{r TOP 4 PCA Variables Visualize}
+pca_var_g <- fviz_pca_var(pkmon_pca, select.var = list(cos2 = 0.5), repel = TRUE)
+
+sweep(list_PCA_mammal$Peromyscus_maniculatus$var$coord,2,sqrt(list_PCA_mammal$Peromyscus_maniculatus$eig[1:ncol(list_PCA_mammal$Peromyscus_maniculatus$var$coord),1]),FUN="/")
+
+pcm1 <- PCA(m1bio)
+pca_var_contrib <- factoextra::fviz_pca_var(pcm1, select.var = list(contrib = 3), repel = TRUE)
+
+```
+
+```{r TOP 4 PCA Variables}
+top4_pc1_mammal <- list()
+top4_pc2_mammal <- list()
+for (i in seq_along(1:length(list_PCA_mammal))){
+ top4_pc1_mammal[[i]] <- names(tail(sort(list_PCA_mammal[[i]]$var$cos2[,1]), 4))
+ top4_pc2_mammal[[i]] <- names(tail(sort(list_PCA_mammal[[i]]$var$cos2[,2]), 4))
+}
+
+top4_pc1_reptile <- list()
+top4_pc2_reptile <- list()
+for (i in seq_along(1:length(list_PCA_reptile))){
+  top4_pc1_reptile[[i]] <- names(tail(sort(list_PCA_reptile[[i]]$var$cos2[,1]), 4))
+  top4_pc2_reptile[[i]] <- names(tail(sort(list_PCA_reptile[[i]]$var$cos2[,2]), 4))
+}
+
+top4_pc1_amphibian <- list()
+top4_pc2_amphibian <- list()
+for (i in seq_along(1:length(list_PCA_amphibian))){
+  top4_pc1_amphibian[[i]] <- names(tail(sort(list_PCA_amphibian[[i]]$var$cos2[,1]), 4))
+  top4_pc2_amphibian[[i]] <- names(tail(sort(list_PCA_amphibian[[i]]$var$cos2[,2]), 4))
+}
+
+top4_pc1_aves <- list()
+top4_pc2_aves <- list()
+for (i in seq_along(1:length(list_PCA_aves))){
+  top4_pc1_aves[[i]] <- names(tail(sort(list_PCA_aves[[i]]$var$cos2[,1]), 4))
+  top4_pc2_aves[[i]] <- names(tail(sort(list_PCA_aves[[i]]$var$cos2[,2]), 4))
+}
+
+```
+
+```{r TOP 4 PCA standardized variables}
+##################### 
+# TOP 4 PCA standardized 
+######################
+top4_pc1_amphibian_sd <- list()
+top4_pc2_amphibian_sd <- list()
+for (i in seq_along(1:length(list_PCA_amphibian_standard))){
+  top4_pc1_amphibian_sd[[i]] <- names(tail(sort(list_PCA_amphibian_standard[[i]]$var$cos2[,1]), 4))
+  top4_pc2_amphibian_sd[[i]] <- names(tail(sort(list_PCA_amphibian_standard[[i]]$var$cos2[,2]), 4))
+}
+
+```
+
+```{r stacking rasters }
+
+paste2 <- function(x){paste("E:/residual_sdm/" ,x, ".tif", sep = "")}
+
+
+
+######################################################
+top4_pc1_mammal.tif <- top4_pc1_mammal %>% map(paste2)
+top4_pc2_mammal.tif <- top4_pc2_mammal %>% map(paste2)
+
+top4_pc2_mammal.tif.stack <- top4_pc2_mammal.tif %>% map(stack)
+top4_pc1_mammal.tif.stack <- top4_pc1_mammal.tif %>% map(stack)
+top4_pc12_mammal.stack <- map2(top4_pc1_mammal.tif.stack, top4_pc2_mammal.tif.stack, stack)
+
+##############################################################################
+top4_pc1_reptile.tif <- top4_pc1_reptile %>% map(paste2)
+top4_pc2_reptile.tif <- top4_pc2_reptile %>% map(paste2)
+
+top4_pc2_reptile.tif.stack <- top4_pc2_reptile.tif %>% map(stack)
+top4_pc1_reptile.tif.stack <- top4_pc1_reptile.tif %>% map(stack)
+top4_pc12_reptile.stack <- map2(top4_pc1_reptile.tif.stack, top4_pc2_reptile.tif.stack, stack)
+
+##############################################################################
+top4_pc1_amphibian.tif <- top4_pc1_amphibian %>% map(paste2)
+top4_pc2_amphibian.tif <- top4_pc2_amphibian %>% map(paste2)
+
+top4_pc2_amphibian.tif.stack <- top4_pc2_amphibian.tif %>% map(stack)
+top4_pc1_amphibian.tif.stack <- top4_pc1_amphibian.tif %>% map(stack)
+top4_pc12_amphibian.stack <- map2(top4_pc1_amphibian.tif.stack, top4_pc2_amphibian.tif.stack, stack)
+
+##############################################################################
+top4_pc1_aves.tif <- top4_pc1_aves %>% map(paste2)
+top4_pc2_aves.tif <- top4_pc2_aves %>% map(paste2)
+
+top4_pc2_aves.tif.stack <- top4_pc2_aves.tif %>% map(stack)
+top4_pc1_aves.tif.stack <- top4_pc1_aves.tif %>% map(stack)
+top4_pc12_aves.stack <- map2(top4_pc1_aves.tif.stack, top4_pc2_aves.tif.stack, stack)
+
+```
+
+```{r get the extent}
+#extent 
+extent_mammal <- map(list_spatial_mammal, extent)
+extent_reptile <- map(list_spatial_reptile, extent)
+extent_amphibian <- map(list_spatial_amphibian, extent)
+extent_aves <- map(list_spatial_aves, extent)
+```
+
+```{r}
+#----------------------------
+#raster crop to save times
+#----------------------------
+
+tic("mammal_bios") #mammal_bios: 5026.39 sec elapsed
+mammal_bios <- furrr::future_map2(top4_pc12_mammal.stack, extent_mammal, crop)
+toc()
+
+tic("reptile_bios") #reptile_bios: 2834.84 sec elapsed
+reptile_bios <- furrr::future_map2(top4_pc12_reptile.stack, extent_reptile, crop)
+toc()
+
+tic("amphibian_bios") #amphibian_bios: 762.35 sec elapsed
+amphibian_bios <- furrr::future_map2(top4_pc12_amphibian.stack, extent_amphibian, crop)
+toc()
+
+tic("aves_bios") #aves_bios: 3765.14 sec elapsed
+aves_bios <- furrr::future_map2(top4_pc12_aves.stack, extent_aves, crop)
+toc()
+
+
+```
+
+
+```{r save raster}
+
+reptile_bios %>% furrr::future_map2(paste0("J:/reptile_bios_", list_origin_reptile,".gri"), writeRaster)
+
+amphibian_bios %>% furrr::future_map2(paste0("J:/amphibian_bios_", list_origin_amphibian,".gri"), writeRaster)
+
+aves_bios %>% 
+furrr::future_map2(paste0("J:/aves_bios_", list_origin_aves,".gri"), writeRaster)
+
+```
+
+```{r read saved rasters}
+
+bios_mammal <- list.files(path = "J:/", pattern="*.gri")
+bios_mammal <- paste0("J:/mammal_bios_", list_origin_mammal, ".gri")
+bios_mammal <- map(bios_mammal, brick)
+
+bios_amphibian <- list.files(path = "J:/", pattern="*.gri")
+bios_amphibian <- paste0("J:/amphibian/amphibian_bios_", list_origin_amphibian, ".gri")
+bios_amphibian <- map(bios_amphibian, brick)
+
+bios_aves <- list.files(path = "J:/", pattern="*.gri")
+bios_aves <- paste0("J:/aves_bios_", list_origin_aves, ".gri")
+bios_aves <- map(bios_aves, brick)
+
+bios_reptile <- list.files(path = "J:/", pattern="*.gri")
+bios_reptile <- paste0("J:/reptile_bios_", list_origin_reptile, ".gri")
+bios_reptile <- map(bios_reptile, brick)
+
+
+```
+Old face is name face. Classic PCA is nice as well.  
+
+
+```{r}
+
+```
+
+
+t-SNE was fancy for last few years. Check it too.  
+
+```{r}
+
+```
+
+But UMAP is even more fancier these days.
+
+```{r}
+
+```
+
+Don't forget the environmental grid.
+```{r}
+dismo::gridSample()
+
+```
+
+
+
+```{r}
+
+```
+
+Before PCA, Let's check correlation matrix of variables
+```{r}
+extract_spatial_amphibian_lapply[[1]] %>% 
+  mutate_if(is.numeric, scale) %>% 
+  select_if(is.numeric) %>% 
+  correlate() %>% # (2)
+  shave(upper = TRUE) %>% # (3)
+  stretch(na.rm = TRUE) %>% 
+  arrange(-r) %>% 
+  DT::datatable() %>% 
+  DT::formatRound("r", digits = 2)
+
+```
+
+
+```{r}
+dismo::threshold()
+```
+
+t-SNE, UMAP, PCA, Environment filter? 
+
+## 추가 연구 Further study 
+```{r}
+library("sampbias")
+```

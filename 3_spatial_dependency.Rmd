@@ -1,0 +1,457 @@
+---
+title: "3_spatial_dependency"
+author: "JEON"
+date: '2021 3 9 '
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(spdep)
+```
+
+```{r semivariogram}
+library(gstat)
+
+vario_pred_cloud <- function(x){gstat::variogram(prediction~1, x, cloud = T)}
+vario_pred <- function(x){gstat::variogram(prediction~1, x)}
+
+sf_xy <- function(x){sf::st_as_sf(x, coords = c("X", "Y"), crs = 4326)}
+test_sf_mammal_cv4k <- map(test_xy_mammal, sf_xy)
+vario_mammal_cv4k <- map(test_sf_mammal_cv4k, vario_pred)
+vario_mammal_cloud <- map(test_sf_mammal_cv4k, vario_pred_cloud)
+
+####
+plot_variogram <- function(v, m) {
+  preds = variogramLine(m, maxdist = max(v$dist))
+  ggplot() + 
+    geom_point(data = v, aes(x = dist, y = gamma, size=np)) +
+    geom_line(data = preds, aes(x = dist, y = gamma)) +
+    theme(legend.key.size = unit(0.00005, 'cm'))
+}
+
+v <- variogram(zinc ~ 1, meuse)
+m <- fit.variogram(v, vgm(c("Exp", "Sph")))
+plot_variogram(v, m) 
+###
+
+vario.plot.4km.sph <- map2(vario_mammal_cv4k, vmcv4k.sph_mammal, plot_variogram)
+
+
+
+#ggplot variogram
+gg.vario <- function(x){ggplot(x,aes(x=dist,y=gamma,size=np)) + geom_point()}
+
+vario.plot.4km.sph <- map(vario_mammal_cv4k, gg.vario)
+
+
+#Check variogram
+
+
+vario_sph <- function(x){fit.variogram(x, vgm("Sph"))}
+vario_exp <- function(x){fit.variogram(x, vgm("Exp"))}
+vario_gau <- function(x){fit.variogram(x, vgm("Gau"))}
+vario_mat <- function(x){fit.variogram(x, vgm("Mat"))}
+
+vmcv4k.sph_mammal <- map(vario_mammal_cv4k, vario_sph)
+vmcv4k.exp_mammal <- map(vario_mammal_cv4k, vario_exp)
+vmcv4k.gau_mammal <- map(vario_mammal_cv4k, vario_gau)
+vmcv4k.mat_mammal <- map(vario_mammal_cv4k, vario_mat)
+
+range.vm.sph.4kM <- data.frame(range = unlist(map(vmcv4k.sph_mammal, c(3,2))))
+range.vm.exp.4kM <- data.frame(range = unlist(map(vmcv4k.exp_mammal, c(3,2))))
+range.vm.gau.4kM <- data.frame(range = unlist(map(vmcv4k.gau_mammal, c(3,2))))
+range.vm.mat.4kM <- data.frame(range = unlist(map(vmcv4k.mat_mammal, c(3,2))))
+
+plot.vario.sph <- function(x){plot(x, model=fit.variogram(x, vgm("Sph")))}
+plot.vario.exp <- function(x){plot(x, model=fit.variogram(x, vgm("Exp")))}
+plot.vario.gau <- function(x){plot(x, model=fit.variogram(x, vgm("Gau")))}
+plot.vario.mat <- function(x){plot(x, model=fit.variogram(x, vgm("Mat")))}
+
+vario.plot.4km.sph <- map(vario_mammal_cv4k, plot.vario.sph)
+vario.plot.4km.gau <- map(vario_mammal_cv4k, plot.vario.gau)
+vario.plot.4km.sph <- map(vario_mammal_cv4k, plot.vario)
+vario.plot.4km.sph <- map(vario_mammal_cv4k, plot.vario)
+
+
+a<- grid.arrange(vario.plot.4km.sph[[1]], vario.plot.4km.sph[[2]], vario.plot.4km.sph[[3]], vario.plot.4km.sph[[4]],vario.plot.4km.sph[[5]], vario.plot.4km.sph[[6]],vario.plot.4km.sph[[7]], vario.plot.4km.sph[[8]],vario.plot.4km.sph[[9]], vario.plot.4km.sph[[10]],vario.plot.4km.sph[[11]], vario.plot.4km.sph[[12]],vario.plot.4km.sph[[13]], vario.plot.4km.sph[[14]],vario.plot.4km.sph[[15]], vario.plot.4km.sph[[16]],vario.plot.4km.sph[[17]], vario.plot.4km.sph[[18]],vario.plot.4km.sph[[19]], vario.plot.4km.sph[[20]],vario.plot.4km.sph[[21]], vario.plot.4km.sph[[22]],vario.plot.4km.sph[[23]], vario.plot.4km.sph[[24]],vario.plot.4km.sph[[25]], vario.plot.4km.sph[[26]],vario.plot.4km.sph[[27]], vario.plot.4km.sph[[28]],vario.plot.4km.sph[[29]], vario.plot.4km.sph[[30]],vario.plot.4km.sph[[31]], vario.plot.4km.sph[[32]],vario.plot.4km.sph[[33]], vario.plot.4km.sph[[34]],vario.plot.4km.sph[[35]], 
+vario.plot.4km.sph[[36]])
+
+
+cowplot::plot_grid(vario.plot.4km.sph[[1]], vario.plot.4km.sph[[2]], vario.plot.4km.sph[[3]], vario.plot.4km.sph[[4]],vario.plot.4km.sph[[5]], vario.plot.4km.sph[[6]],vario.plot.4km.sph[[7]], vario.plot.4km.sph[[8]],vario.plot.4km.sph[[9]], vario.plot.4km.sph[[10]],vario.plot.4km.sph[[11]], vario.plot.4km.sph[[12]],vario.plot.4km.sph[[13]], vario.plot.4km.sph[[14]],vario.plot.4km.sph[[15]], vario.plot.4km.sph[[16]],vario.plot.4km.sph[[17]], vario.plot.4km.sph[[18]],vario.plot.4km.sph[[19]], vario.plot.4km.sph[[20]],vario.plot.4km.sph[[21]], vario.plot.4km.sph[[22]],vario.plot.4km.sph[[23]], vario.plot.4km.sph[[24]],vario.plot.4km.sph[[25]], vario.plot.4km.sph[[26]],vario.plot.4km.sph[[27]], vario.plot.4km.sph[[28]],vario.plot.4km.sph[[29]], vario.plot.4km.sph[[30]],vario.plot.4km.sph[[31]], vario.plot.4km.sph[[32]],vario.plot.4km.sph[[33]], vario.plot.4km.sph[[34]],vario.plot.4km.sph[[35]], 
+             vario.plot.4km.sph[[36]],  ncol = 6, nrow = 6, label_size = 5)
+
+pdf("test2.pdf")
+
+a <- grid.arrange(vario.plot.4km.sph[[1]], vario.plot.4km.sph[[2]], vario.plot.4km.sph[[3]], vario.plot.4km.sph[[4]], ncol = 2, nrow = 2)
+
+
+
+savePlot(vario.plot.4km.gau[[1]], filename = "test.png", type = "png")
+ggsave(filename = "test.png", plot = vario.plot.4km.gau[[1]])
+
+all_vario
+
+library(ncf)
+
+ncf::correlog(test_xy_mammal[[1]][,1], test_xy_mammal[[1]][,2], test_xy_mammal[[1]][,3],
+              resamp = 10, increment = 1000)
+```
+
+```{r get your Spatial Autocorrelation with gstat:: }
+#make neightbour to check Moran's I 
+library(spdep)
+
+#1. Variogram range based neighborhood 
+
+dnn <- function(x, y){spdep::dnearneigh(x, 0, y)}
+
+dnn.sph.4kM <- list()
+for (i in 1:length(test_sf_mammal_cv4k)){
+  dnn.sph.4kM[[i]] <- spdep::dnearneigh(test_sf_mammal_cv4k[[i]], 0, range.vm.sph.4kM[i,]) 
+}
+
+
+dnb_mammal <- map2(sf_resid_fold5_mammal, vari_mammal_range$range, dnn)
+
+nb2listw_zero <- function(x){nb2listw(x, zero.policy = T)}
+
+listw_dnb_mammal <- map(dnb_mammal, nb2listw_zero)
+
+#set true for fucking stupid error and its old style function
+set.ZeroPolicyOption(TRUE)
+
+
+
+
+knb1 <- function(x){nb2listw(knn2nb(knearneigh(x, k=1)))}
+knb2 <- function(x){nb2listw(knn2nb(knearneigh(x, k=2)))}
+knb3 <- function(x){nb2listw(knn2nb(knearneigh(x, k=3)))}
+knb4 <- function(x){nb2listw(knn2nb(knearneigh(x, k=4)))}
+knb5 <- function(x){nb2listw(knn2nb(knearneigh(x, k=5)))}
+knb6 <- function(x){nb2listw(knn2nb(knearneigh(x, k=6)))}
+knb7 <- function(x){nb2listw(knn2nb(knearneigh(x, k=7)))}
+knb8 <- function(x){nb2listw(knn2nb(knearneigh(x, k=8)))}
+knb9 <- function(x){nb2listw(knn2nb(knearneigh(x, k=9)))}
+knb10 <- function(x){nb2listw(knn2nb(knearneigh(x, k=10)))}
+
+
+knb1_mammal <- map(sf_pred_fold5_mammal, knb1)
+knb2_mammal <- map(sf_pred_fold5_mammal, knb2)
+knb3_mammal <- map(sf_pred_fold5_mammal, knb3)
+knb4_mammal <- map(sf_pred_fold5_mammal, knb4)
+knb5_mammal <- map(sf_pred_fold5_mammal, knb5)
+knb6_mammal <- map(sf_pred_fold5_mammal, knb6)
+knb7_mammal <- map(sf_pred_fold5_mammal, knb7)
+knb8_mammal <- map(sf_pred_fold5_mammal, knb8)
+knb9_mammal <- map(sf_pred_fold5_mammal, knb9)
+knb10_mammal <- map(sf_pred_fold5_mammal, knb10)
+
+
+moran_mammal_1k1 <- map2(map(sf_resid_fold5_mammal, 4), knb1_mammal, moran.test)
+moran_mammal_1k2 <- map2(map(sf_resid_fold5_mammal, 4), knb2_mammal, moran.test)
+moran_mammal_1k3 <- map2(map(sf_resid_fold5_mammal, 4), knb3_mammal, moran.test)
+moran_mammal_1k4 <- map2(map(sf_resid_fold5_mammal, 4), knb4_mammal, moran.test)
+moran_mammal_1k5 <- map2(map(sf_resid_fold5_mammal, 4), knb5_mammal, moran.test)
+moran_mammal_1k6 <- map2(map(sf_resid_fold5_mammal, 4), knb6_mammal, moran.test)
+moran_mammal_1k7 <- map2(map(sf_resid_fold5_mammal, 4), knb7_mammal, moran.test)
+moran_mammal_1k8 <- map2(map(sf_resid_fold5_mammal, 4), knb8_mammal, moran.test)
+moran_mammal_1k9 <- map2(map(sf_resid_fold5_mammal, 4), knb9_mammal, moran.test)
+moran_mammal_1k10 <- map2(map(sf_resid_fold5_mammal, 4), knb10_mammal, moran.test)
+
+moran_mammal_0.9k1 <- map2(map(sf_resid_fold5_mammal, 5), knb1_mammal, moran.test)
+moran_mammal_0.9k2 <- map2(map(sf_resid_fold5_mammal, 5), knb2_mammal, moran.test)
+moran_mammal_0.9k3 <- map2(map(sf_resid_fold5_mammal, 5), knb3_mammal, moran.test)
+moran_mammal_0.9k4 <- map2(map(sf_resid_fold5_mammal, 5), knb4_mammal, moran.test)
+moran_mammal_0.9k5 <- map2(map(sf_resid_fold5_mammal, 5), knb5_mammal, moran.test)
+moran_mammal_0.9k6 <- map2(map(sf_resid_fold5_mammal, 5), knb6_mammal, moran.test)
+moran_mammal_0.9k7 <- map2(map(sf_resid_fold5_mammal, 5), knb7_mammal, moran.test)
+moran_mammal_0.9k8 <- map2(map(sf_resid_fold5_mammal, 5), knb8_mammal, moran.test)
+moran_mammal_0.9k9 <- map2(map(sf_resid_fold5_mammal, 5), knb9_mammal, moran.test)
+moran_mammal_0.9k10 <- map2(map(sf_resid_fold5_mammal, 5), knb10_mammal, moran.test)
+
+moran_mammal_0.8k1 <- map2(map(sf_resid_fold5_mammal, 6), knb1_mammal, moran.test)
+moran_mammal_0.8k2 <- map2(map(sf_resid_fold5_mammal, 6), knb2_mammal, moran.test)
+moran_mammal_0.8k3 <- map2(map(sf_resid_fold5_mammal, 6), knb3_mammal, moran.test)
+moran_mammal_0.8k4 <- map2(map(sf_resid_fold5_mammal, 6), knb4_mammal, moran.test)
+moran_mammal_0.8k5 <- map2(map(sf_resid_fold5_mammal, 6), knb5_mammal, moran.test)
+moran_mammal_0.8k6 <- map2(map(sf_resid_fold5_mammal, 6), knb6_mammal, moran.test)
+moran_mammal_0.8k7 <- map2(map(sf_resid_fold5_mammal, 6), knb7_mammal, moran.test)
+moran_mammal_0.8k8 <- map2(map(sf_resid_fold5_mammal, 6), knb8_mammal, moran.test)
+moran_mammal_0.8k9 <- map2(map(sf_resid_fold5_mammal, 6), knb9_mammal, moran.test)
+moran_mammal_0.8k10 <- map2(map(sf_resid_fold5_mammal, 6), knb10_mammal, moran.test)
+
+moran_mammal_0.7k1 <- map2(map(sf_resid_fold5_mammal, 7), knb1_mammal, moran.test)
+moran_mammal_0.7k2 <- map2(map(sf_resid_fold5_mammal, 7), knb2_mammal, moran.test)
+moran_mammal_0.7k3 <- map2(map(sf_resid_fold5_mammal, 7), knb3_mammal, moran.test)
+moran_mammal_0.7k4 <- map2(map(sf_resid_fold5_mammal, 7), knb4_mammal, moran.test)
+moran_mammal_0.7k5 <- map2(map(sf_resid_fold5_mammal, 7), knb5_mammal, moran.test)
+moran_mammal_0.7k6 <- map2(map(sf_resid_fold5_mammal, 7), knb6_mammal, moran.test)
+moran_mammal_0.7k7 <- map2(map(sf_resid_fold5_mammal, 7), knb7_mammal, moran.test)
+moran_mammal_0.7k8 <- map2(map(sf_resid_fold5_mammal, 7), knb8_mammal, moran.test)
+moran_mammal_0.7k9 <- map2(map(sf_resid_fold5_mammal, 7), knb9_mammal, moran.test)
+moran_mammal_0.7k10 <- map2(map(sf_resid_fold5_mammal, 7), knb10_mammal, moran.test)
+
+moran_mammal_0.6k1 <- map2(map(sf_resid_fold5_mammal, 8), knb1_mammal, moran.test)
+moran_mammal_0.6k2 <- map2(map(sf_resid_fold5_mammal, 8), knb2_mammal, moran.test)
+moran_mammal_0.6k3 <- map2(map(sf_resid_fold5_mammal, 8), knb3_mammal, moran.test)
+moran_mammal_0.6k4 <- map2(map(sf_resid_fold5_mammal, 8), knb4_mammal, moran.test)
+moran_mammal_0.6k5 <- map2(map(sf_resid_fold5_mammal, 8), knb5_mammal, moran.test)
+moran_mammal_0.6k6 <- map2(map(sf_resid_fold5_mammal, 8), knb6_mammal, moran.test)
+moran_mammal_0.6k7 <- map2(map(sf_resid_fold5_mammal, 8), knb7_mammal, moran.test)
+moran_mammal_0.6k8 <- map2(map(sf_resid_fold5_mammal, 8), knb8_mammal, moran.test)
+moran_mammal_0.6k9 <- map2(map(sf_resid_fold5_mammal, 8), knb9_mammal, moran.test)
+moran_mammal_0.6k10 <- map2(map(sf_resid_fold5_mammal, 8), knb10_mammal, moran.test)
+
+moran_mammal_0.5k1 <- map2(map(sf_resid_fold5_mammal, 9), knb1_mammal, moran.test)
+moran_mammal_0.5k2 <- map2(map(sf_resid_fold5_mammal, 9), knb2_mammal, moran.test)
+moran_mammal_0.5k3 <- map2(map(sf_resid_fold5_mammal, 9), knb3_mammal, moran.test)
+moran_mammal_0.5k4 <- map2(map(sf_resid_fold5_mammal, 9), knb4_mammal, moran.test)
+moran_mammal_0.5k5 <- map2(map(sf_resid_fold5_mammal, 9), knb5_mammal, moran.test)
+moran_mammal_0.5k6 <- map2(map(sf_resid_fold5_mammal, 9), knb6_mammal, moran.test)
+moran_mammal_0.5k7 <- map2(map(sf_resid_fold5_mammal, 9), knb7_mammal, moran.test)
+moran_mammal_0.5k8 <- map2(map(sf_resid_fold5_mammal, 9), knb8_mammal, moran.test)
+moran_mammal_0.5k9 <- map2(map(sf_resid_fold5_mammal, 9), knb9_mammal, moran.test)
+moran_mammal_0.5k10 <- map2(map(sf_resid_fold5_mammal, 9), knb10_mammal, moran.test)
+
+moran_mammal_1dnb <- map2(map(sf_resid_fold5_mammal, 4), listw_dnb_mammal, moran.test)
+moran_mammal_0.9dnb <- map2(map(sf_resid_fold5_mammal, 5), listw_dnb_mammal, moran.test)
+moran_mammal_0.8dnb <- map2(map(sf_resid_fold5_mammal, 6), listw_dnb_mammal, moran.test)
+moran_mammal_0.7dnb <- map2(map(sf_resid_fold5_mammal, 7), listw_dnb_mammal, moran.test)
+moran_mammal_0.6dnb <- map2(map(sf_resid_fold5_mammal, 8), listw_dnb_mammal, moran.test)
+moran_mammal_0.5dnb <- map2(map(sf_resid_fold5_mammal, 9), listw_dnb_mammal, moran.test)
+```
+
+
+```{r Moran's Correlogram}
+
+  
+a <- sp.correlogram(knb5_mammal[[6]], sf_resid_fold5_mammal[[6]]$residual_1, order = 9, method = "I")
+plot(a)
+
+
+```
+
+```{r tmap visualize}
+#Some variogram is weird. Checking tmap
+
+library(tmap)
+tm_shape(sf_resid_fold5_mammal[[1]]) + tm_dots("pred")
+tm_shape(sf_resid_fold5_mammal[[2]]) + tm_dots("pred")
+tm_shape(sf_resid_fold5_mammal[[13]]) + tm_dots("pred")
+#4 is fucked up 
+tm_shape(sf_resid_fold5_mammal[[14]]) + tm_dots("pred")
+
+```
+
+
+```{r Y axis, Moran's I with different "K", different "Threshold"}
+
+mammal_Y_moran <- tibble::tibble(moran_0.5k1 = unlist(map(moran_mammal_0.5k1, c(3,1))),
+                                  moran_0.5k2 = unlist(map(moran_mammal_0.5k2, c(3,1))),
+                                  moran_0.5k3 = unlist(map(moran_mammal_0.5k3, c(3,1))),
+                                  moran_0.5k4 = unlist(map(moran_mammal_0.5k4, c(3,1))),
+                                  moran_0.5k5 = unlist(map(moran_mammal_0.5k5, c(3,1))),
+                                  moran_0.5k6 = unlist(map(moran_mammal_0.5k6, c(3,1))),
+                                  moran_0.5k7 = unlist(map(moran_mammal_0.5k7, c(3,1))),
+                                  moran_0.5k8 = unlist(map(moran_mammal_0.5k8, c(3,1))),
+                                  moran_0.5k9 = unlist(map(moran_mammal_0.5k9, c(3,1))),
+                                  moran_0.5k10 = unlist(map(moran_mammal_0.5k10, c(3,1))),
+                                  moran_0.6k1 = unlist(map(moran_mammal_0.6k1, c(3,1))),
+                                  moran_0.6k2 = unlist(map(moran_mammal_0.6k2, c(3,1))),
+                                  moran_0.6k3 = unlist(map(moran_mammal_0.6k3, c(3,1))),
+                                  moran_0.6k4 = unlist(map(moran_mammal_0.6k4, c(3,1))),
+                                  moran_0.6k5 = unlist(map(moran_mammal_0.6k5, c(3,1))),
+                                  moran_0.6k6 = unlist(map(moran_mammal_0.6k6, c(3,1))),
+                                  moran_0.6k7 = unlist(map(moran_mammal_0.6k7, c(3,1))),
+                                  moran_0.6k8 = unlist(map(moran_mammal_0.6k8, c(3,1))),
+                                  moran_0.6k9 = unlist(map(moran_mammal_0.6k9, c(3,1))),
+                                  moran_0.6k10 = unlist(map(moran_mammal_0.6k10, c(3,1))),
+                                  moran_0.7k1 = unlist(map(moran_mammal_0.7k1, c(3,1))),
+                                  moran_0.7k2 = unlist(map(moran_mammal_0.7k2, c(3,1))),
+                                  moran_0.7k3 = unlist(map(moran_mammal_0.7k3, c(3,1))),
+                                  moran_0.7k4 = unlist(map(moran_mammal_0.7k4, c(3,1))),
+                                  moran_0.7k5 = unlist(map(moran_mammal_0.7k5, c(3,1))),
+                                  moran_0.7k6 = unlist(map(moran_mammal_0.7k6, c(3,1))),
+                                  moran_0.7k7 = unlist(map(moran_mammal_0.7k7, c(3,1))),
+                                  moran_0.7k8 = unlist(map(moran_mammal_0.7k8, c(3,1))),
+                                  moran_0.7k9 = unlist(map(moran_mammal_0.7k9, c(3,1))),
+                                  moran_0.7k10 = unlist(map(moran_mammal_0.7k10, c(3,1))),
+                                  moran_0.8k1 = unlist(map(moran_mammal_0.8k1, c(3,1))),
+                                  moran_0.8k2 = unlist(map(moran_mammal_0.8k2, c(3,1))),
+                                  moran_0.8k3 = unlist(map(moran_mammal_0.8k3, c(3,1))),
+                                  moran_0.8k4 = unlist(map(moran_mammal_0.8k4, c(3,1))),
+                                  moran_0.8k5 = unlist(map(moran_mammal_0.8k5, c(3,1))),
+                                  moran_0.8k6 = unlist(map(moran_mammal_0.8k6, c(3,1))),
+                                  moran_0.8k7 = unlist(map(moran_mammal_0.8k7, c(3,1))),
+                                  moran_0.8k8 = unlist(map(moran_mammal_0.8k8, c(3,1))),
+                                  moran_0.8k9 = unlist(map(moran_mammal_0.8k9, c(3,1))),
+                                  moran_0.8k10 = unlist(map(moran_mammal_0.8k10, c(3,1))),
+                                  moran_0.9k1 = unlist(map(moran_mammal_0.9k1, c(3,1))),
+                                  moran_0.9k2 = unlist(map(moran_mammal_0.9k2, c(3,1))),
+                                  moran_0.9k3 = unlist(map(moran_mammal_0.9k3, c(3,1))),
+                                  moran_0.9k4 = unlist(map(moran_mammal_0.9k4, c(3,1))),
+                                  moran_0.9k5 = unlist(map(moran_mammal_0.9k5, c(3,1))),
+                                  moran_0.9k6 = unlist(map(moran_mammal_0.9k6, c(3,1))),
+                                  moran_0.9k7 = unlist(map(moran_mammal_0.9k7, c(3,1))),
+                                  moran_0.9k8 = unlist(map(moran_mammal_0.9k8, c(3,1))),
+                                  moran_0.9k9 = unlist(map(moran_mammal_0.9k9, c(3,1))),
+                                  moran_0.9k10 = unlist(map(moran_mammal_0.9k10, c(3,1))),
+                                  moran_1k1 = unlist(map(moran_mammal_1k1, c(3,1))),
+                                  moran_1k2 = unlist(map(moran_mammal_1k2, c(3,1))),
+                                  moran_1k3 = unlist(map(moran_mammal_1k3, c(3,1))),
+                                  moran_1k4 = unlist(map(moran_mammal_1k4, c(3,1))),
+                                  moran_1k5 = unlist(map(moran_mammal_1k5, c(3,1))),
+                                  moran_1k6 = unlist(map(moran_mammal_1k6, c(3,1))),
+                                  moran_1k7 = unlist(map(moran_mammal_1k7, c(3,1))),
+                                  moran_1k8 = unlist(map(moran_mammal_1k8, c(3,1))),
+                                  moran_1k9 = unlist(map(moran_mammal_1k9, c(3,1))),
+                                  moran_1k10 = unlist(map(moran_mammal_1k10, c(3,1))),
+                                  nb_0.05 = nb_mammal,
+                                  moran_1dnb = unlist(map(moran_mammal_1dnb, c(3,1))),
+                                  moran_0.9dnb = unlist(map(moran_mammal_0.9dnb, c(3,1))),
+                                  moran_0.8dnb = unlist(map(moran_mammal_0.8dnb, c(3,1))),
+                                  moran_0.7dnb = unlist(map(moran_mammal_0.7dnb, c(3,1))),
+                                  moran_0.6dnb = unlist(map(moran_mammal_0.6dnb, c(3,1))),
+                                  moran_0.5dnb = unlist(map(moran_mammal_0.5dnb, c(3,1))))
+
+
+
+```
+
+```{r X axis, Niche breadth from different Quantile, different ordination}
+#from 0.05~0.95 
+
+nb_mammal <- nb_mammal[-31]
+nb_mammal <- nb_mammal[-26]
+
+mammal_X_nb <- data.frame(nb_mammal)
+
+
+```
+
+```{r X + Y...}
+
+mammal_XY <- mutate(mammal_Y_moran, nb_0.05 = mammal_X_nb)
+mammal_XY_df <- as.data.frame(mammal_XY)
+```
+
+```{r}
+p <- ggplot(data = mammal_Y_moran) +
+    geom_point(aes(x = nb_0.05, y = moran_1k1, color = 1)) +
+    geom_smooth(aes(x = nb_0.05, y= moran_1k10), method = "lm") +
+    geom_point(aes(x = nb_0.05, y = moran_1k2, color = 2)) +
+    geom_point(aes(x = nb_0.05, y = moran_1k3, color = 3)) +
+    geom_point(aes(x = nb_0.05, y = moran_1k4, color = 4)) +
+    geom_point(aes(x = nb_0.05, y = moran_1k5, color = 5)) +
+    geom_point(aes(x = nb_0.05, y = moran_1k6, color = 6)) +
+    geom_point(aes(x = nb_0.05, y = moran_1k7, color = 7)) +
+    geom_point(aes(x = nb_0.05, y = moran_1k8, color = 8)) +
+    geom_point(aes(x = nb_0.05, y = moran_1k9, color = 9)) +
+    geom_point(aes(x = nb_0.05, y = moran_1k10, color = 10)) +
+    labs(title = "Residuals of SDM", 
+    subtitle = "Can niche breadth predict ",
+    x = "Climatic Niche Breadth", y = "Residual Moran's I") +
+    theme_bw()
+
+
+
+```
+
+```{r}
+q <- ggplot(data = mammal_Y_moran) +
+    geom_point(aes(x = nb_0.05, y = moran_1k1, color = 1)) +
+    geom_smooth(aes(x = nb_0.05, y= moran_1k10), method = "lm") +
+    geom_point(aes(x = nb_0.05, y = moran_1k10, color = 10)) +
+    labs(title = "Residuals of SDM", 
+    subtitle = "Can niche breadth predict?",
+    x = "Climatic Niche Breadth", y = "Residual Moran's I") +
+    theme_bw()
+
+scatter_morannb <- function(y){ggplot(data = mammal_Y_moran) +
+                                  geom_point(aes(x = nb_0.05, y = y)) + 
+                                  geom_smooth(aes(x = nb_0.05, y = y), method = "lm")}
+  
+all_scatter<- map(mammal_Y_moran[1:60], scatter_morannb)
+
+
+map2(ggname_save, all_scatter, ggsave)
+
+a <- list(1:60)
+
+ggname <- read_csv("E:/residual_sdm/species_mammal.csv", col_names = "scientificName", skip = 1)
+ggname<- ggname[-31,]
+ggname <- ggname[-26,]
+ggname <- as.list(ggname)
+ggname_save <- paste0("E:/",1:60,".png")
+```
+
+```{r}
+p <- ggplot(data = mammal_Y_moran) +
+    geom_point(aes(x = nb_0.05, y = moran_1dnb, size = , color = "red")) +
+    geom_point(aes(x = nb_0.05, y = moran_1k10, size = 0.002, color = "blue")) +
+    geom_smooth(aes(x = nb_0.05, y= moran_1dnb), method = "lm") +
+    geom_smooth(aes(x = nb_0.05, y= moran_1k10), method = "lm") +
+    labs(title = "Residuals of SDM", 
+    subtitle = "Can niche breadth predict ",
+    x = "Climatic Niche Breadth", y = "Residual Moran's I", fill="wtf") +
+    theme(legend.position = 'none') 
+    
+
+    
+
+
+
+
+
+```
+
+```{r}
+p <- ggplot(data = mammal_Y_moran) +
+    geom_point(aes(x = nb_0.05, y = moran_1k1, color = 1)) +
+    geom_smooth(aes(x = nb_0.05, y= moran_1k10), method = "lm") +
+    geom_point(aes(x = nb_0.05, y = moran_1k2, color = 2)) +
+    geom_point(aes(x = nb_0.05, y = moran_1k3, color = 3)) +
+    geom_point(aes(x = nb_0.05, y = moran_1k4, color = 4)) +
+    geom_point(aes(x = nb_0.05, y = moran_1k5, color = 5)) +
+    geom_point(aes(x = nb_0.05, y = moran_1k6, color = 6)) +
+    geom_point(aes(x = nb_0.05, y = moran_1k7, color = 7)) +
+    geom_point(aes(x = nb_0.05, y = moran_1k8, color = 8)) +
+    geom_point(aes(x = nb_0.05, y = moran_1k9, color = 9)) +
+    geom_point(aes(x = nb_0.05, y = moran_1k10, color = 10)) +
+    labs(title = "Residuals of SDM", 
+    subtitle = "Can niche breadth predict ",
+    x = "Climatic Niche Breadth", y = "Residual Moran's I") +
+    theme_bw()
+
+
+
+```
+
+
+
+```{r}
+p <- ggplot(data = mammal_Y_moran) +
+    geom_smooth(aes(x = nb_0.05, y= moran_0.9k10), method = "lm") +
+    labs(title = "Residuals of SDM", 
+    subtitle = "Can niche breadth predict ",
+    x = "Climatic Niche Breadth", y = "Residual Moran's I") +
+    theme_bw()
+```
+
+```{r histogram}
+tibble4ggp1 <- tibble(rsac = mammal_Y_moran$moran_1dnb)
+tibble4ggp2 <- tibble(rsac = mammal_Y_moran$moran_1k10)
+tibble4ggp <- rbind(tibble4ggp1, tibble4ggp2)                     
+tibble4ggp <- tibble4ggp %>% mutate(neighbor = length(1:100))
+tibble4ggp$neighbor[1:50] <- "variogram distance"
+tibble4ggp$neighbor[51:100] <- "10NN"
+
+
+ggplot(tibble4ggp, aes(x=rsac, color=neighbor, )) +
+  geom_histogram(aes(fill=neighbor), color="gray50", position="dodge", alpha=0.2, binwidth=0.09)+
+  geom_density(alpha=0.5)+
+  theme_gray()
+
+
+```
