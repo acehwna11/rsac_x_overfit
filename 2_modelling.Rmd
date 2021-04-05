@@ -31,62 +31,59 @@ library(furrr)
 cores <- parallel::detectCores() - 1
 cluster <- parallel::makeCluster(spec = cores)
 doParallel::registerDoParallel(cl = cluster)
-future::plan(multisession, workers = 3)
+future::plan(multisession, workers = 64)
 stopCluster(cl)
 future:::ClusterRegistry("stop")
 ```
 
 
-```{r model data : prepareSWD}
+```{r}
+data.mammal <- readr::read_rds(file = "data/data.mammal.rds")
+data.reptile <- readr::read_rds(file = "data/data.reptile.rds")
+data.amphibian <- readr::read_rds(file = "data/data.amphibian.rds")
 
-data.mammal_pilot <- list()
-for (i in 1:length(sf_mammal_pilot)){data.mammal_pilot[[i]] <- SDMtune::prepareSWD(
-  species = sf_mammal_pilot[[i]]$species[1], 
-  p = sfd_mammal_pilot[[i]][,83:84], 
-  a = bg2x_mammal_pilot[[i]], 
-  env = stackbio)}
-
-data.mammal <- list()
-for (i in 1:length(sf_mammal)){data.mammal[[i]] <- SDMtune::prepareSWD(
-  species = sf_mammal[[i]]$species[1], 
-  p = sfd_mammal[[i]][,83:84], 
-  a = bg1x_mammal[[i]], 
-  env = stackbio)}
-
-swdmaker <- function(x,y){SDMtune::prepareSWD(
-  species = x$species[1], 
-  p = x[,83:84], 
-  a = y, 
-  env = stackbio)}
-
-
-
-
-
-data.mammal <- map2(sfd_mammal, bg1x_mammal, swdmaker)
-data.reptile <- furrr::future_map2(sfd_reptile, bg1x_reptile, swdmaker)
-data.amphibian <- furrr::future_map2(sfd_amphibian, bg1x_amphibian, swdmaker)
-
-data.mammal_pilot <- furrr::future_map2(sfd_mammal_pilot, bg2x_mammal_pilot, swdmaker)
-
-data.reptile <- list()
-for (i in 1:length(sf_reptile)){data.reptile[[i]] <- SDMtune::prepareSWD(
-  species = sf_reptile[[i]]$species[1], 
-  p = sfd_reptile[[i]][,83:84], 
-  a = bg1x_reptile[[i]], 
-  env = stackbio)}
-
-data.amphibian <- list()
-for (i in 1:length(sf_amphibian)){data.amphibian[[i]] <- SDMtune::prepareSWD(
-  species = sf_amphibian[[i]]$species[1], 
-  p = sfd_amphibian[[i]][,83:84], 
-  a = bg1x_amphibian[[i]], 
-  env = stackbio)}
-
-
-
-swd2csv(data, file_name = "data.csv")
 ```
+
+```{r}
+reaarange <- function(x){dplyr::select(x@data, c(1,12,13,14,15,16,17,18,19,2,3,4,5,6,7,8,9,10,11))}
+
+for (i in 1:length(data.mammal)){
+data.mammal[[i]]@data <- reaarange(data.mammal[[i]])
+}
+
+for (i in 1:length(data.reptile)){
+data.reptile[[i]]@data <- reaarange(data.reptile[[i]])
+}
+
+for (i in 1:length(data.amphibian)){
+data.amphibian[[i]]@data <- reaarange(data.amphibian[[i]])
+}
+
+for (i in 1:length(data.mammal)){
+names(data.mammal[[i]]@data) <- c("wc2.1_30s_bio_01", "wc2.1_30s_bio_02", "wc2.1_30s_bio_03", "wc2.1_30s_bio_04",
+                                  "wc2.1_30s_bio_05", "wc2.1_30s_bio_06", "wc2.1_30s_bio_07", "wc2.1_30s_bio_08",
+                                  "wc2.1_30s_bio_09", "wc2.1_30s_bio_10", "wc2.1_30s_bio_11", "wc2.1_30s_bio_12",
+                                  "wc2.1_30s_bio_13", "wc2.1_30s_bio_14", "wc2.1_30s_bio_15", "wc2.1_30s_bio_16",
+                                  "wc2.1_30s_bio_17", "wc2.1_30s_bio_18", "wc2.1_30s_bio_19")
+}
+
+for (i in 1:length(data.reptile)){
+names(data.reptile[[i]]@data) <- c("wc2.1_30s_bio_01", "wc2.1_30s_bio_02", "wc2.1_30s_bio_03", "wc2.1_30s_bio_04",
+                                   "wc2.1_30s_bio_05", "wc2.1_30s_bio_06", "wc2.1_30s_bio_07", "wc2.1_30s_bio_08",
+                                   "wc2.1_30s_bio_09", "wc2.1_30s_bio_10", "wc2.1_30s_bio_11", "wc2.1_30s_bio_12",
+                                   "wc2.1_30s_bio_13", "wc2.1_30s_bio_14", "wc2.1_30s_bio_15", "wc2.1_30s_bio_16",
+                                   "wc2.1_30s_bio_17", "wc2.1_30s_bio_18", "wc2.1_30s_bio_19")
+}
+
+for (i in 1:length(data.amphibian)){
+names(data.amphibian[[i]]@data) <- c("wc2.1_30s_bio_01", "wc2.1_30s_bio_02", "wc2.1_30s_bio_03", "wc2.1_30s_bio_04",
+                                     "wc2.1_30s_bio_05", "wc2.1_30s_bio_06", "wc2.1_30s_bio_07", "wc2.1_30s_bio_08",
+                                     "wc2.1_30s_bio_09", "wc2.1_30s_bio_10", "wc2.1_30s_bio_11", "wc2.1_30s_bio_12",
+                                     "wc2.1_30s_bio_13", "wc2.1_30s_bio_14", "wc2.1_30s_bio_15", "wc2.1_30s_bio_16",
+                                     "wc2.1_30s_bio_17", "wc2.1_30s_bio_18", "wc2.1_30s_bio_19")
+}
+```
+
 데이터를 어떻게 쪼개느냐에 따라 모델 성능이 갈릴 것이다.
 random k fold는 가진 모든 출현 데이터를 k개의 가짓수로 train과 test 셋으로 나눈다.
 1000개에 5 fold 라면, 200개는 test셋이고 800개는 train 셋인데 
@@ -98,7 +95,7 @@ random k fold는 가진 모든 출현 데이터를 k개의 가짓수로 train과
 ```{r}
 t.t.name <- function(x){c(paste0("train_", x$species[1]), paste0("test_", x$species[1]))}
 t.t.name_mammal <- map(sf_mammal, t.t.name)
-t.t.name_mammal_pilot <- map(sf_mammal_pilot, t.t.name)
+
 ```
 
 ```{r include=FALSE}
@@ -109,17 +106,27 @@ c(train, val, test) %<-% trainValTest(data.mammal_pilot[[1]], val = 0.2, test = 
 
 ```{r train model : }
 
+library(SDMtune)
+
 #split 2, train, test
 
 # 20 % for test
 t.t.mammal_0.2 <- list()
-for (i in 1:length(data.mammal)){t.t.mammal_0.2[[i]] <- trainValTest(data.mammal[[i]], test = 0.2, only_presence = TRUE, seed = 4838)}
+for (i in 1:length(data.mammal)){t.t.mammal_0.2[[i]] <- trainValTest(data.mammal[[i]], test = 0.2, only_presence = TRUE, seed = 1)}
 
-cut100 <- function(x){x <- x[1:100,]}
-data.mammalp <- map(data.mammal, cut100)
+t.t.reptile_0.2 <- list()
+for (i in 1:length(data.reptile)){t.t.reptile_0.2[[i]] <- trainValTest(data.reptile[[i]], test = 0.2, only_presence = TRUE, seed = 1)}
 
-t.t.mammal_0.2p <- list()
-for (i in 1:length(data.mammal_pilot)){t.t.mammal_0.2p[[i]] <- trainValTest(data.mammal_pilot[[i]], test = 0.2, only_presence = TRUE, seed = 4838)}
+t.t.amphibian_0.2 <- list()
+for (i in 1:length(data.amphibian)){t.t.amphibian_0.2[[i]] <- trainValTest(data.amphibian[[i]], test = 0.2, only_presence = TRUE, seed = 1)}
+
+
+
+
+
+folds.rnd5k_mammal <- list()
+for (i in 1:length(t.t.mammal_0.2)){rnd5k_mammal[[i]] <- randomFolds(t.t.mammal_0.2[[i]][[1]], k = 5, only_presence = TRUE, seed = 3667)}
+
 
 
 
@@ -132,14 +139,13 @@ for (i in 1:length(data.mammal_pilot)){t.t.mammal_0.2p[[i]] <- trainValTest(data
 #maxnet_model <- train("Maxnet", data = train)
 
 #random 4 fold cross validation
-rnd4k_mammal <- list()
-for (i in 1:length(t.t.mammal_0.2)){rnd4k_mammal[[i]] <- randomFolds(t.t.mammal_0.2[[i]][[1]], k = 4, only_presence = TRUE, seed = 3667)}
+
 
 #purrr
 rnd4k <- function(x){randomFolds(x[[1]], 
                                  k = 4,
                                  only_presence = TRUE,
-                                 seed = 3668)}
+                                 seed = 1)}
 
 rnd5k <- function(x){randomFolds(x[[1]], 
                                  k = 5,
@@ -148,11 +154,11 @@ rnd5k <- function(x){randomFolds(x[[1]],
 
 folds.rnd4k_mammal <- map(t.t.mammal_0.2, rnd4k)
 folds.rnd5k_mammal <- map(t.t.mammal_0.2, rnd5k)
-folds.rnd4k_mammal.p <- map(t.t.mammal_0.2p, rnd4k)
 
+folds.rnd4k_reptile <- map(t.t.reptile_0.2, rnd4k)
 
-folds.rnd5k_mammal <- list()
-for (i in 1:length(t.t.mammal_0.2)){rnd5k_mammal[[i]] <- randomFolds(t.t.mammal_0.2[[i]][[1]], k = 5, only_presence = TRUE, seed = 3667)}
+folds.rnd4k_amphibian <- map(t.t.amphibian_0.2, rnd4k)
+
 
 model_rndcv4k_mammal <- list()
 for (i in 1:length(rnd4k_mammal)){model_rndcv4k_mammal[[i]] <- train("Maxnet", data =t.t.mammal_0.2[[i]][[1]], folds = rnd4k_mammal[[i]])}
@@ -160,28 +166,83 @@ for (i in 1:length(rnd4k_mammal)){model_rndcv4k_mammal[[i]] <- train("Maxnet", d
 
 #purrr
 
-maxnet <- function(x, y){train("Maxnet",
-                                data = x[[1]],
-                                folds = y)}
+maxnet.train <- function(x, y){SDMtune::train("Maxnet",
+                                               data = x[[1]],
+                                               folds = y)}
 
-moedl_rndcv4k_mammal <- map2(t.t.mammal_0.2, rnd4k_mammal, maxnet)
-model_rndcv5k_mammal <- map2(t.t.mammal_0.2, rnd5k_mammal, maxnet)  
+model_rndcv4k_mammal <- future_map2(t.t.mammal_0.2, 
+                                    folds.rnd4k_mammal, 
+                                    maxnet.train, 
+                                    .options = furrr_options(seed = TRUE),
+                                    .progress = T)
 
-moedl_rndcv4k_mammal.p <- future_map2(t.t.mammal_0.2p, folds.rnd4k_mammal.p, maxnet)
+model_rndcv5k_mammal <- future_map2(t.t.mammal_0.2,
+                                    rnd5k_mammal, 
+                                    maxnet, 
+                                    .options = furrr_options(seed = TRUE), 
+                                    .progress = T)  
 
-model_rndcv5k_mammal <- list()
-for (i in 1:length(rnd5k_mammal)){model_rndcv5k_mammal[[i]] <- train("Maxnet", data =t.t.mammal_0.2[[i]][[1]], folds = rnd5k_mammal[[i]])}
+model_rndcv4k_reptile <- future_map2(t.t.reptile_0.2, 
+                                    folds.rnd4k_reptile, 
+                                    maxnet.train, 
+                                    .options = furrr_options(seed = TRUE),
+                                    .progress = T)
+
+model_rndcv4k_amphibian <- future_map2(t.t.amphibian_0.2, 
+                                    folds.rnd4k_amphibian, 
+                                    maxnet.train, 
+                                    .options = furrr_options(seed = TRUE),
+                                    .progress = T)
+
+
+```
 
 # spatial block cross validation model
 
-folds.block_mammal <- get.block(occ = data.mammal[[i]]@data[data@pa == 1, ], 
-                                bg.coords = data.mammal[[i]]@data[data@pa == 0, ])
+```{r}
+library(ENMeval)
 
-model_block_mammal <- train(method = "Maxnet", 
-                            data = data, 
-                            fc = "l", 
-                            reg = 0.8, 
-                            folds = folds.block_mammal)
+folds.block_mammal <- list()
+for(i in 1:length(data.mammal)){
+  folds.block_mammal[[i]] <- get.block(occ = t.t.mammal_0.2[[i]][[1]]@data[t.t.mammal_0.2[[i]][[1]]@pa == 1,], 
+                                       bg.coords = data.mammal[[i]]@data[data.mammal[[i]]@pa == 0, ])
+}
+
+folds.block_reptile <- list()
+for(i in 1:length(data.reptile)){
+  folds.block_reptile[[i]] <- get.block(occ = t.t.reptile_0.2[[i]][[1]]@data[t.t.reptile_0.2[[i]][[1]]@pa == 1,], 
+                                       bg.coords = data.reptile[[i]]@data[data.reptile[[i]]@pa == 0, ])
+}
+
+folds.block_amphibian <- list()
+for(i in 1:length(data.amphibian)){
+  folds.block_amphibian[[i]] <- get.block(occ = t.t.amphibian_0.2[[i]][[1]]@data[t.t.amphibian_0.2[[i]][[1]]@pa == 1,], 
+                                       bg.coords = data.amphibian[[i]]@data[data.amphibian[[i]]@pa == 0, ])
+}
+
+
+
+model_spcv4k_mammal <- future_map2(t.t.mammal_0.2, 
+                                    folds.block_mammal, 
+                                    maxnet.train,
+                                    .options = furrr_options(seed = TRUE),
+                                    .progress = T)
+
+model_spcv4k_reptile <- future_map2(t.t.reptile_0.2, 
+                                    folds.block_reptile, 
+                                    maxnet.train,
+                                    .options = furrr_options(seed = TRUE),
+                                    .progress = T)
+
+model_spcv4k_amphibian <- future_map2(t.t.amphibian_0.2, 
+                                    folds.block_amphibian, 
+                                    maxnet.train,
+                                    .options = furrr_options(seed = TRUE),
+                                    .progress = T)
+
+
+```
+
 
 cb_folds <- get.checkerboard1(occ = data@data[data@pa == 1, ], 
                               env = predictors, 
@@ -190,18 +251,235 @@ cb_folds <- get.checkerboard1(occ = data@data[data@pa == 1, ],
 
 model <- train(method = "Maxnet", data = data, fc = "l", reg = 0.8, folds = cb_folds)
 
-# environmental block cross validation model
-
-# Create spatial points data frame
-test <- SpatialPointsDataFrame(data.mammal_pilot[[1]]@coords, data = as.data.frame(data.mammal_pilot[[1]]@pa), proj4string = crs(stackbio))
-e_folds <- blockCV::envBlock(rasterLayer = stackbio, speciesData = test, k = 8, standardization = "standard", rasterBlock = TRUE, numLimit = 1)
-model <- train(method = "Maxnet", data = data, fc = "l", reg = 0.8, folds = e_folds)
-
-```
+# 3. Environmental block
 
 ```{r}
+library(raster)
+biopath <- paste0("bios/", list.files(pattern="*.tif", path = "bios/"))
+stackbio <- raster::stack(biopath)
+
+# environmental block cross validation model
+library(blockCV)
+# Create spatial points data frame
+sp_mammal <- list()
+for (i in 1:length(t.t.mammal_0.2)){
+sp_mammal[[i]] <- SpatialPointsDataFrame(t.t.mammal_0.2[[i]][[1]]@coords, 
+                                         data = data.frame(t.t.mammal_0.2[[i]][[1]]@pa),
+                                         proj4string = CRS("+proj=longlat +datum=WGS84"))
+}
+
+for (i in 1:length(sp_mammal)){
+names(sp_mammal[[i]]) <- "pa"
+}  
+
+
+
+
+env4k <- function(x){blockCV::envBlock(rasterLayer = stackbio,
+                                      speciesData = x, 
+                                      species = x$pa,
+                                      k = 4, 
+                                      standardization = "standard", 
+                                      rasterBlock = FALSE, 
+                                      numLimit = 100)
+}
+
+
+
+folds.env_mammal <- list()
+folds.env_mammal[[3]] <- env4k(sp_mammal[[3]])
+
+folds.env_mammal <- future_map(sp_mammal, 
+                               env4k, 
+                               .options = furrr_options(seed = TRUE),
+                               .progress = TRUE)
+
+model_envcv4k_mammal <- list()
+model_envcv4k_mammal[[2]] <- maxnet(t.t.mammal_0.2[[2]][1], folds.env_mammal[[2]]) 
+
+model_envcv4k_mammal[[2]] <- SDMtune::train("Maxnet", 
+                                            data = t.t.mammal_0.2[[1]][[1]],
+                                            folds = folds.env_mammal)
+
 
 ```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+new("standardGeneric", .Data = function (object, ...) 
+standardGeneric("predict"), generic = "predict", package = "stats", 
+  group = list(), valueClass = character(0), signature = "object", 
+  default = new("derivedDefaultMethod", .Data = function (object, 
+    ...) 
+  UseMethod("predict"), target = new("signature", .Data = "ANY", 
+    names = "object", package = "methods"), defined = new("signature", 
+    .Data = "ANY", names = "object", package = "methods"), 
+    generic = "predict"), skeleton = (new("derivedDefaultMethod", 
+    .Data = function (object, ...) 
+    UseMethod("predict"), target = new("signature", .Data = "ANY", 
+      names = "object", package = "methods"), defined = new("signature", 
+      .Data = "ANY", names = "object", package = "methods"), 
+    generic = "predict"))(object, ...))
+
+```
+
+
+
+
+
+
+
+```{r}
+predict.test <- function(x,y){
+  SDMtune::predict(x,
+                   data = y[[2]],
+                   fun = "mean",
+                   type = "cloglog")
+}
+
+predict.train <- function(x,y){
+  SDMtune::predict(x,
+                   data = y[[1]],
+                   fun = "mean",
+                   type = "cloglog")
+}
+
+
+
+test_spcv4k_mammal <- map2(model_spcv4k_mammal, 
+                                   t.t.mammal_0.2, 
+                                   predict.test 
+                                   )
+
+train_spcv4k_mammal <- map2(model_spcv4k_mammal, 
+                                   t.t.mammal_0.2, 
+                                   predict.train 
+                                   )
+
+test_rndcv4k_mammal <- map2(model_rndcv4k_mammal, 
+                                   t.t.mammal_0.2, 
+                                   predict.test 
+                                   )
+
+train_rndcv4k_mammal <- map2(model_rndcv4k_mammal, 
+                                   t.t.mammal_0.2, 
+                                   predict.train 
+                                   )
+
+test_envcv4k_mammal <- map2(model_envcv4k_mammal, 
+                                   t.t.mammal_0.2, 
+                                   predict.test 
+                                   )
+
+
+```
+```{r}
+rmse.train_rndcv4k_mammal <- vector()
+for (i in 1:length(train_rndcv4k_mammal)){
+ rmse.train_rndcv4k_mammal[i] <- sqrt(sum((1- train_rndcv4k_mammal[[i]])^2) / length(train_rndcv4k_mammal[[i]]))
+}
+
+rmse.test_rndcv4k_mammal <- vector()
+for (i in 1:length(test_rndcv4k_mammal)){
+ rmse.test_rndcv4k_mammal[i] <- sqrt(sum((1- test_rndcv4k_mammal[[i]])^2) / length(test_rndcv4k_mammal[[i]]))
+}
+
+rmse.train_spcv4k_mammal <- vector()
+for (i in 1:length(train_spcv4k_mammal)){
+ rmse.train_spcv4k_mammal[i] <- sqrt(sum((1- train_spcv4k_mammal[[i]])^2) / length(train_spcv4k_mammal[[i]]))
+}
+
+rmse.test_spcv4k_mammal <- vector()
+for (i in 1:length(test_spcv4k_mammal)){
+ rmse.test_spcv4k_mammal[i] <- sqrt(sum((1- test_spcv4k_mammal[[i]])^2) / length(test_spcv4k_mammal[[i]]))
+}
+```
+
+
+```{r}
+readr::write_rds(test_rndcv4k_mammal, file = "train_test/test_rndcv4k_mammal.rds")
+readr::write_rds(test_spcv4k_mammal, file = "train_test/test_spcv4k_mammal.rds")
+readr::write_rds(train_rndcv4k_mammal, file = "train_test/train_rndcv4k_mammal.rds")
+readr::write_rds(train_spcv4k_mammal, file = "train_test/train_spcv4k_mammal.rds")
+
+readr::write_rds(test_rndcv4k_mammal, file = "train_test/test_rndcv4k_mammal")
+readr::write_rds(test_spcv4k_mammal, file = "train_test/test_rndcv4k_mammal")
+readr::write_rds(train_rndcv4k_mammal, file = "train_test/train_rndcv4k_mammal")
+readr::write_rds(train_spcv4k_mammal, file = "train_test/train_spcv4k_mammal")
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 ```{r predict with model : }
@@ -215,15 +493,8 @@ tail(pred)
 ```
 
 ```{r}
-for (i in 77:93){
-  model_rndcv4k_reptile[[i]] <- g[[i-76]]}
 
-test_rndcv4k_mammal <- list()
-for (i in 1:length(model_rndcv4k_mammal)){
-  test_rndcv4k_mammal2[[i]] <- SDMtune::predict(model_rndcv4k_mammal[[i]],
-                                               data = t.t.mammal_0.2[[i]][[2]],
-                                               type = "cloglog")
-}
+
 test_xy_mammal <- list()
 for (i in 1:length(t.t.mammal_0.2)){test_xy_mammal[[i]] <-
 t.t.mammal_0.2[[i]][[2]]@coords %>% mutate(., 
@@ -248,6 +519,8 @@ for (i in 1:length(test_xy_reptile)){
   test_xy_reptile[[i]] <- test_xy_reptile[[i]] %>% mutate(., 
                                  residual.1 = 1 - prediction)
 }
+
+##
 
 # fix sequence
 for (i in 1:length(test_xy_mammal)){
@@ -321,7 +594,7 @@ for (i in 67:76){
 folds.rnd4k_reptile.h32[[i-66]] <- folds.rnd4k_reptile[[i]]
 }
 
-maxnet <- function(x, y){train("Maxnet",
+maxnet.train <- function(x, y){train("Maxnet",
                                 data = x[[1]],
                                 folds = y)}
 
@@ -450,17 +723,6 @@ rocplot <- function(x){plot(x, 'ROC')}
 ```
 
 ```{r it's modeling time: dismo::predict}
-
-predict <- function(x, y){dismo::predict(x, y, arg = c("outputformat=raw"), progress= 'text', 
-                                         filename='predict_amphibian_grd')}
-
-r<- dismo::predict(model_amphibian_maxent[[1]], bios_amphibian[[1]])
-
-predict_amphibian_maxent <- map2(model_amphibian_maxent, bios_amphibian, dismo::predict)
-
-predict_aves_maxent <- future_map2(model_aves_maxent, aves_bios, dismo::predict)
-
-predict_mammal_maxent <- map2(model_mammal_maxent, bios_mammal, dismo::predict)
 ```
 
 ```{r random points for background}

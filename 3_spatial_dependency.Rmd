@@ -10,15 +10,30 @@ library(tidyverse)
 library(spdep)
 ```
 
+```{r}
+train_rndcv4k_mammal <- readr::read_rds(file = "train_test/train_rndcv4k_mammal.rds")
+test_rndcv4k_mammal <- readr::read_rds(file = "train_test/test_rndcv4k_mammal.rds")
+train_spcv4k_mammal <- readr::read_rds(file = "train_test/train_spcv4k_mammal.rds")
+test_spcv4k_mammal <- readr::read_rds(file = "train_test/test_spcv4k_mammal.rds")
+```
+
+```{r}
+
+```
+
+
+
 ```{r semivariogram}
 library(gstat)
 
 vario_pred_cloud <- function(x){gstat::variogram(prediction~1, x, cloud = T)}
-vario_pred <- function(x){gstat::variogram(prediction~1, x)}
+vario_pred <- function(x){gstat::variogram(residual.1~1, x)}
 
 sf_xy <- function(x){sf::st_as_sf(x, coords = c("X", "Y"), crs = 4326)}
 test_sf_mammal_cv4k <- map(test_xy_mammal, sf_xy)
+test_sf_reptile_cv4k <- map(test_xy_reptile, sf_xy)
 vario_mammal_cv4k <- map(test_sf_mammal_cv4k, vario_pred)
+
 vario_mammal_cloud <- map(test_sf_mammal_cv4k, vario_pred_cloud)
 
 ####
@@ -36,6 +51,20 @@ plot_variogram(v, m)
 ###
 
 vario.plot.4km.sph <- map2(vario_mammal_cv4k, vmcv4k.sph_mammal, plot_variogram)
+vario.plot.4km.gau <- map2(vario_mammal_cv4k, vmcv4k.gau_mammal, plot_variogram)
+vario.plot.4km.exp <- map2(vario_mammal_cv4k, vmcv4k.exp_mammal, plot_variogram)
+vario.plot.4km.mat <- map2(vario_mammal_cv4k, vmcv4k.mat_mammal, plot_variogram)
+vario.plot.4km.exc <- map2(vario_mammal_cv4k, vmcv4k.exc_mammal, plot_variogram)
+vario.plot.4km.cir <- map2(vario_mammal_cv4k, vmcv4k.cir_mammal, plot_variogram)
+vario.plot.4km.lin <- map2(vario_mammal_cv4k, vmcv4k.lin_mammal, plot_variogram)
+vario.plot.4km.bes <- map2(vario_mammal_cv4k, vmcv4k.bes_mammal, plot_variogram)
+vario.plot.4km.pen <- map2(vario_mammal_cv4k, vmcv4k.pen_mammal, plot_variogram)
+vario.plot.4km.per <- map2(vario_mammal_cv4k, vmcv4k.per_mammal, plot_variogram)
+vario.plot.4km.wav <- map2(vario_mammal_cv4k, vmcv4k.wav_mammal, plot_variogram)
+vario.plot.4km.hol <- map2(vario_mammal_cv4k, vmcv4k.hol_mammal, plot_variogram)
+vario.plot.4km.spl <- map2(vario_mammal_cv4k, vmcv4k.spl_mammal, plot_variogram)
+vario.plot.4km.leg <- map2(vario_mammal_cv4k, vmcv4k.leg_mammal, plot_variogram)
+vario.plot.4km.err <- map2(vario_mammal_cv4k, vmcv4k.err_mammal, plot_variogram)
 
 
 
@@ -52,11 +81,49 @@ vario_sph <- function(x){fit.variogram(x, vgm("Sph"))}
 vario_exp <- function(x){fit.variogram(x, vgm("Exp"))}
 vario_gau <- function(x){fit.variogram(x, vgm("Gau"))}
 vario_mat <- function(x){fit.variogram(x, vgm("Mat"))}
+vario_exc <- function(x){fit.variogram(x, vgm("Exc"))}
+vario_stemat <- function(x){fit.variogram(x, vgm("Ste Mat"))}
+vario_cir <- function(x){fit.variogram(x, vgm("Cir"))}
+vario_lin <- function(x){fit.variogram(x, vgm("Lin"))}
+vario_bes <- function(x){fit.variogram(x, vgm("Bes"))}
+vario_pen <- function(x){fit.variogram(x, vgm("Pen"))}
+vario_per <- function(x){fit.variogram(x, vgm("Per"))}
+vario_wav <- function(x){fit.variogram(x, vgm("Wav"))}
+vario_hol <- function(x){fit.variogram(x, vgm("Hol"))}
+vario_log <- function(x){fit.variogram(x, vgm("Log"))}
+vario_pow <- function(x){fit.variogram(x, vgm("Pow"))}
+vario_spl <- function(x){fit.variogram(x, vgm("Spl"))}
+vario_leg <- function(x){fit.variogram(x, vgm("Leg"))}
+vario_err <- function(x){fit.variogram(x, vgm("Err"))}
+vario_int <- function(x){fit.variogram(x, vgm("Int"))}
+
+
+
 
 vmcv4k.sph_mammal <- map(vario_mammal_cv4k, vario_sph)
 vmcv4k.exp_mammal <- map(vario_mammal_cv4k, vario_exp)
 vmcv4k.gau_mammal <- map(vario_mammal_cv4k, vario_gau)
 vmcv4k.mat_mammal <- map(vario_mammal_cv4k, vario_mat)
+vmcv4k.exc_mammal <- map(vario_mammal_cv4k, vario_exc)
+vmcv4k.stemat_mammal <- map(vario_mammal_cv4k, vario_stemat)
+vmcv4k.cir_mammal <- map(vario_mammal_cv4k, vario_cir)
+vmcv4k.lin_mammal <- map(vario_mammal_cv4k, vario_lin)
+vmcv4k.bes_mammal <- map(vario_mammal_cv4k, vario_bes)
+vmcv4k.pen_mammal <- map(vario_mammal_cv4k, vario_pen)
+vmcv4k.per_mammal <- map(vario_mammal_cv4k, vario_per)
+vmcv4k.wav_mammal <- map(vario_mammal_cv4k, vario_wav)
+vmcv4k.hol_mammal <- map(vario_mammal_cv4k, vario_hol)
+vmcv4k.log_mammal <- map(vario_mammal_cv4k, vario_log)
+vmcv4k.pow_mammal <- map(vario_mammal_cv4k, vario_pow)
+vmcv4k.spl_mammal <- map(vario_mammal_cv4k, vario_spl)
+vmcv4k.leg_mammal <- map(vario_mammal_cv4k, vario_leg)
+vmcv4k.err_mammal <- map(vario_mammal_cv4k, vario_err)
+vmcv4k.int_mammal <- map(vario_mammal_cv4k, vario_int)
+
+
+
+
+range.vm.sph.4kM <- map(vmcv4k.sph_mammal, c(3,2))
 
 range.vm.sph.4kM <- data.frame(range = unlist(map(vmcv4k.sph_mammal, c(3,2))))
 range.vm.exp.4kM <- data.frame(range = unlist(map(vmcv4k.exp_mammal, c(3,2))))
@@ -73,6 +140,7 @@ vario.plot.4km.gau <- map(vario_mammal_cv4k, plot.vario.gau)
 vario.plot.4km.sph <- map(vario_mammal_cv4k, plot.vario)
 vario.plot.4km.sph <- map(vario_mammal_cv4k, plot.vario)
 
+library(gridExtra)
 
 a<- grid.arrange(vario.plot.4km.sph[[1]], vario.plot.4km.sph[[2]], vario.plot.4km.sph[[3]], vario.plot.4km.sph[[4]],vario.plot.4km.sph[[5]], vario.plot.4km.sph[[6]],vario.plot.4km.sph[[7]], vario.plot.4km.sph[[8]],vario.plot.4km.sph[[9]], vario.plot.4km.sph[[10]],vario.plot.4km.sph[[11]], vario.plot.4km.sph[[12]],vario.plot.4km.sph[[13]], vario.plot.4km.sph[[14]],vario.plot.4km.sph[[15]], vario.plot.4km.sph[[16]],vario.plot.4km.sph[[17]], vario.plot.4km.sph[[18]],vario.plot.4km.sph[[19]], vario.plot.4km.sph[[20]],vario.plot.4km.sph[[21]], vario.plot.4km.sph[[22]],vario.plot.4km.sph[[23]], vario.plot.4km.sph[[24]],vario.plot.4km.sph[[25]], vario.plot.4km.sph[[26]],vario.plot.4km.sph[[27]], vario.plot.4km.sph[[28]],vario.plot.4km.sph[[29]], vario.plot.4km.sph[[30]],vario.plot.4km.sph[[31]], vario.plot.4km.sph[[32]],vario.plot.4km.sph[[33]], vario.plot.4km.sph[[34]],vario.plot.4km.sph[[35]], 
 vario.plot.4km.sph[[36]])
@@ -98,6 +166,31 @@ ncf::correlog(test_xy_mammal[[1]][,1], test_xy_mammal[[1]][,2], test_xy_mammal[[
               resamp = 10, increment = 1000)
 ```
 
+classical moran's I with ape
+```{r}
+
+library(ape)
+resid.dists <- as.matrix(dist(cbind(test_xy_mammal.test$X, test_xy_mammal.test$Y)))
+resid.dists.inv <- 1/resid.dists
+diag(resid.dists.inv) <- 0
+
+Moran.I(test_xy_mammal.test$residual.1, resid.dists.inv)
+
+```
+
+
+```{r}
+
+library(spdep)
+
+dnn.sph.4kM[[1]] <- spdep::dnearneigh(a, 0, 168.4539)
+
+moran()
+
+```
+
+
+
 ```{r get your Spatial Autocorrelation with gstat:: }
 #make neightbour to check Moran's I 
 library(spdep)
@@ -110,6 +203,68 @@ dnn.sph.4kM <- list()
 for (i in 1:length(test_sf_mammal_cv4k)){
   dnn.sph.4kM[[i]] <- spdep::dnearneigh(test_sf_mammal_cv4k[[i]], 0, range.vm.sph.4kM[i,]) 
 }
+
+
+# dnn이 너무 오래 걸려서 임의로 쪼개본다.
+test_sf_mammal_cv4k.test <- list()
+test_sf_mammal_cv4k.test[[1]] <- test_sf_mammal_cv4k[[1]]
+test_sf_mammal_cv4k.test[[2]] <- test_sf_mammal_cv4k[[2]]
+test_sf_mammal_cv4k.test[[3]] <- test_sf_mammal_cv4k[[5]]
+test_sf_mammal_cv4k.test[[4]] <- test_sf_mammal_cv4k[[7]]
+test_sf_mammal_cv4k.test[[5]] <- test_sf_mammal_cv4k[[9]]
+test_sf_mammal_cv4k.test[[6]] <- test_sf_mammal_cv4k[[11]]
+test_sf_mammal_cv4k.test[[7]] <- test_sf_mammal_cv4k[[12]]
+test_sf_mammal_cv4k.test[[8]] <- test_sf_mammal_cv4k[[14]]
+test_sf_mammal_cv4k.test[[9]] <- test_sf_mammal_cv4k[[18]]
+test_sf_mammal_cv4k.test[[10]] <- test_sf_mammal_cv4k[[19]]
+test_sf_mammal_cv4k.test[[11]] <- test_sf_mammal_cv4k[[20]]
+test_sf_mammal_cv4k.test[[12]] <- test_sf_mammal_cv4k[[21]]
+test_sf_mammal_cv4k.test[[13]] <- test_sf_mammal_cv4k[[22]]
+test_sf_mammal_cv4k.test[[14]] <- test_sf_mammal_cv4k[[23]]
+test_sf_mammal_cv4k.test[[15]] <- test_sf_mammal_cv4k[[24]]
+test_sf_mammal_cv4k.test[[16]] <- test_sf_mammal_cv4k[[25]]
+test_sf_mammal_cv4k.test[[17]] <- test_sf_mammal_cv4k[[26]]
+test_sf_mammal_cv4k.test[[18]] <- test_sf_mammal_cv4k[[29]]
+test_sf_mammal_cv4k.test[[19]] <- test_sf_mammal_cv4k[[30]]
+test_sf_mammal_cv4k.test[[20]] <- test_sf_mammal_cv4k[[32]]
+test_sf_mammal_cv4k.test[[21]] <- test_sf_mammal_cv4k[[34]]
+test_sf_mammal_cv4k.test[[22]] <- test_sf_mammal_cv4k[[36]]
+
+range.vm.sph.4kM.test <- list()
+range.vm.sph.4kM.test[[1]] <- range.vm.sph.4kM[[1]]
+range.vm.sph.4kM.test[[2]] <- range.vm.sph.4kM[[2]]
+range.vm.sph.4kM.test[[3]] <- range.vm.sph.4kM[[5]]
+range.vm.sph.4kM.test[[4]] <- range.vm.sph.4kM[[7]]
+range.vm.sph.4kM.test[[5]] <- range.vm.sph.4kM[[9]]
+range.vm.sph.4kM.test[[6]] <- range.vm.sph.4kM[[11]]
+range.vm.sph.4kM.test[[7]] <- range.vm.sph.4kM[[12]]
+range.vm.sph.4kM.test[[8]] <- range.vm.sph.4kM[[14]]
+range.vm.sph.4kM.test[[9]] <- range.vm.sph.4kM[[18]]
+range.vm.sph.4kM.test[[10]] <- range.vm.sph.4kM[[19]]
+range.vm.sph.4kM.test[[11]] <- range.vm.sph.4kM[[20]]
+range.vm.sph.4kM.test[[12]] <- range.vm.sph.4kM[[21]]
+range.vm.sph.4kM.test[[13]] <- range.vm.sph.4kM[[22]]
+range.vm.sph.4kM.test[[14]] <- range.vm.sph.4kM[[23]]
+range.vm.sph.4kM.test[[15]] <- range.vm.sph.4kM[[24]]
+range.vm.sph.4kM.test[[16]] <- range.vm.sph.4kM[[25]]
+range.vm.sph.4kM.test[[17]] <- range.vm.sph.4kM[[26]]
+range.vm.sph.4kM.test[[18]] <- range.vm.sph.4kM[[29]]
+range.vm.sph.4kM.test[[19]] <- range.vm.sph.4kM[[30]]
+range.vm.sph.4kM.test[[20]] <- range.vm.sph.4kM[[32]]
+range.vm.sph.4kM.test[[21]] <- range.vm.sph.4kM[[34]]
+range.vm.sph.4kM.test[[22]] <- range.vm.sph.4kM[[36]]
+
+
+
+
+
+
+
+
+
+
+
+dnn.sph.4kM.test <- furrr::future_map2(test_sf_mammal_cv4k.test, range.vm.sph.4kM.test, dnn)
 
 
 dnb_mammal <- map2(sf_resid_fold5_mammal, vari_mammal_range$range, dnn)

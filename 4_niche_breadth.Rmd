@@ -17,6 +17,147 @@ library(ggplot2)
 ```
 
 ```{r}
+library(tidyverse)
+
+```
+
+# Aims. 
+Capture the niche breadth of every species.
+Methodology include 3 ways,
+1. classical Levin's Niche Breadth with my own function(다 더하는 것은 어렵. samp intensity에 대한 비판 방어는?)
+2. Levin's Niche breadth with ENMeval
+3. DBSCAN - 자의적 판단기준?
+4. Broennimann et al. 2012 ecospat... var, PCA, Sum of Variance
+5. 0.05 ~ 0.95 boxplot
+6. 전문가 데이터와 비교 
+7. 순위로 더하기
+8. 다 해보고 순위가 비슷한 애들만 뽑아보기?
+9. 
+
+
+# 1. Classical Levin's niche breadth
+This represent relative frequency of individuals in the jth Category
+which catch the Eveness along the gradients
+
+0 < B < J (number of Jth category)
+0 represent specialist, J reprensent generalist.
+
+until bio11, it is temperature. each category can be 2
+from 12 - 19, they are precipitation. each category can be 10 each.
+
+```{r}
+data.reptile <- readr::read_rds(file = "data/data.reptile.rds")
+```
+
+
+```{r}
+
+reaarange <- function(x){select(x@data, c(1,12,13,14,15,16,17,18,19,2,3,4,5,6,7,8,9,10,11))}
+
+for (i in 1:length(data.mammal)){
+data.mammal[[i]]@data <- reaarange(data.mammal[[i]])
+}
+
+for (i in 1:length(data.reptile)){
+data.reptile[[i]]@data <- reaarange(data.reptile[[i]])
+}
+```
+
+
+```{r}
+library(raster)
+
+bios.name <- paste0("C:/Users/lophital/Documents/rsac_x_overfit/bios/", list.files(pattern="*.tif", path = "C:/Users/lophital/Documents/rsac_x_overfit/bios"))
+
+bios <- list()
+for (i in 1:length(bios.name)){
+  bios[[i]] <- raster::raster(bios.name[i])
+}
+
+bio.min <- vector()
+for (i in 1:19){
+bio.min[i] <- ceiling(bios[[i]]@data@min)
+}
+
+bio.max <- vector()
+for (i in 1:19){
+bio.max[i] <- ceiling(bios[[i]]@data@max)
+}
+
+biobreak <- list()
+for(i in 1:11){
+biobreak[[i]] <- bio.min[i]:bio.max[i]
+}
+for(i in 12:19){
+biobreak[[i]] <- (bio.min[i]:bio.max[i]*10)  
+}
+
+bchist <- function(x, y){hist(x, breaks = y)}
+biohist_reptile <- list()
+for (i in 1:94){
+biohist_reptile[[i]] <- map2(data.reptile[[i]]@data, biobreak, bchist)
+}
+
+levin.nb <- function(x){
+  1/sum((x$counts/sum(x$counts))^2)
+  }
+
+levin.nb_reptile <- list()
+for(i in 1:length(data.reptile)){
+levin.nb_reptile[[i]] <- map(biohist_reptile[[i]], levin.nb)
+}
+
+nichebreadth.df <- data.frame(bio1 = map_dbl(levin.nb_reptile, 1),
+                              bio2 = map_dbl(levin.nb_reptile, 2),
+                              bio3 = map_dbl(levin.nb_reptile, 3),
+                              bio4 = map_dbl(levin.nb_reptile, 4),
+                              bio5 = map_dbl(levin.nb_reptile, 5),
+                              bio6 = map_dbl(levin.nb_reptile, 6),
+                              bio7 = map_dbl(levin.nb_reptile, 7),
+                              bio8 = map_dbl(levin.nb_reptile, 8),
+                              bio9 = map_dbl(levin.nb_reptile, 9),
+                              bio10 = map_dbl(levin.nb_reptile, 10),
+                              bio11 = map_dbl(levin.nb_reptile, 11),
+                              bio12 = map_dbl(levin.nb_reptile, 12),
+                              bio13 = map_dbl(levin.nb_reptile, 13),
+                              bio14 = map_dbl(levin.nb_reptile, 14),
+                              bio15 = map_dbl(levin.nb_reptile, 15),
+                              bio16 = map_dbl(levin.nb_reptile, 16),
+                              bio17 = map_dbl(levin.nb_reptile, 17),
+                              bio18 = map_dbl(levin.nb_reptile, 18),
+                              bio19 = map_dbl(levin.nb_reptile, 19))
+
+```
+
+# 2. Levin's niche breadth with ENMeval
+
+```{r}
+library(RInSp)
+
+a <- RInSp::import.RInSp(data.reptile[[2]]@data, data.type = "double")
+b <- RInSp::like.Wi(a)
+```
+
+
+# 3. Broennimann et al. 2012
+
+plot in 2 PC axis, Z axis of SDM, Kernel density smoothing
+
+```{r}
+library(ecospat)
+ecospat::ecospat.grid
+```
+
+
+
+
+
+
+
+
+
+
+```{r}
 map(out_reptile$gbif$data, map_ggplot)
 ```
 ```{r mapping occurences with mapr::mapggplot}

@@ -24,10 +24,9 @@ Chapter 3 include bio-climate NAs removal.
 # CH.1 Get gbif data
 
 ```{r}
-library(spocc)
 library(tidyverse)
 library(readxl)
-library(raster)
+library(data.table)
 ```
 
 
@@ -40,729 +39,415 @@ specieslist_aves <- readxl::read_xlsx("species.xlsx", sheet = 4)
 ```
 
 
-```{r}
-out_mammal <- occ(query = specieslist_mammal$scientificName ,from = "gbif", limit = 100000, has_coords= T)  
-toc()
-tic("retile_occ") #672.14 sec elapsed
-out_reptile <- occ(query = list_origin_reptile, from = 'gbif', limit = 1000, has_coords= T)  
-toc()
-tic("amphibian_occ") # 326.06 sec elapsed
-out_amphibian <- occ(query = list_origin_amphibian, from = 'gbif', limit = 1000, has_coords= T)
-toc()
-tic("aves_occ") #653.15 sec elapsed
-out_aves <- occ(query = list_origin_aves, from = 'gbif', limit = 10000, has_coords = T)
-```
-
-```{r}
-selectuseful <- function(x){dplyr::select(x, 1:62)}
-
-out_mammal_names <- paste0("E:/out/mammal/out_", list_origin_mammal, ".csv")
-out_mammal_forsave <- map(out_mammal$gbif$data, selectuseful) 
-map2(out_mammal_forsave, out_mammal_names, write_csv)
-
-out_reptile_names <- paste0("E:/out/reptile/out_", list_origin_reptile, ".csv")
-out_reptile_forsave <- map(out_reptile$gbif$data, selectuseful) 
-map2(out_reptile_forsave, out_reptile_names, write_csv)
-
-out_amphibian_names <- paste0("E:/out/amphibian/out_", list_origin_amphibian, ".csv")
-out_amphibian_forsave <- map(out_amphibian$gbif$data, selectuseful) 
-map2(out_amphibian_forsave, out_amphibian_names, write_csv)
-
-out_aves_names <- paste0("E:/out/aves/out_", list_origin_aves, ".csv")
-out_aves_forsave <- map(out_aves$gbif$data, selectuseful) 
-map2(out_aves_forsave, out_aves_names, write_csv)
-```
-
-```{r read out_data}
-out_mammal_saved <- map(out_mammal_names, read_csv)
-out_reptile_saved <- map(out_reptile_names, read_csv)
-out_amphibian_saved <- map(out_amphibian_names, read_csv)
-out_aves_saved <- map(out_aves_names, read_csv)
-
-list_longlat_mammal <- rep(list('empty'), length(1))
-for (i in 1:length(1)){
-  list_longlat_mammal[[i]] <- sapply(
-    out_mammal_saved,
-    function(x){
-      cbind(x[,2:3])
-      })
-}
-
-list_longlat_reptile <- rep(list('empty'), length(1))
-for (i in 1:length(1)){
-  list_longlat_reptile[[i]] <- sapply(
-    out_reptile_saved,
-    function(x){
-      cbind(x[,2:3])
-      })
-}
-list_longlat_amphibian <- rep(list('empty'), length(1))
-for (i in 1:length(1)){
-  list_longlat_amphibian[[i]] <- sapply(
-    out_amphibian_saved,
-    function(x){
-      cbind(x[,2:3])
-      })
-}
-list_longlat_aves <- rep(list('empty'), length(1))
-for (i in 1:length(1)){
-  list_longlat_aves[[i]] <- sapply(
-    out_aves_saved,
-    function(x){
-      cbind(x[,2:3])
-      })
-}
-
-```
-
-
-
-
-```{r cbind longlat}
-list_longlat_mammal <- rep(list('empty'), length(1))
-for (i in 1:length(1)){
-  list_longlat_mammal[[i]] <- sapply(
-    out_mammal$gbif$data,
-    function(x){
-      cbind(x[,2:3])
-      })
-}
-
-list_longlat_reptile <- rep(list('empty'), length(1))
-for (i in 1:length(1)){
-  list_longlat_reptile[[i]] <- sapply(
-    out_reptile$gbif$data,
-    function(x){
-      cbind(x[,2:3])
-      })
-}
-
-list_longlat_amphibian <- rep(list('empty'), length(1))
-for (i in 1:length(1)){
-  list_longlat_amphibian[[i]] <- sapply(
-    out_amphibian$gbif$data,
-    function(x){
-      cbind(x[,2:3])
-    })
-}
-
-list_longlat_aves <- rep(list('empty'), length(1))
-for (i in 1:length(1)){
-  list_longlat_aves[[i]] <- sapply(
-    out_aves$gbif$data,
-    function(x){
-      cbind(x[,2:3])
-    })
-}
-```
-
-```{r convert list_longlat_taxon into data.frame}
-data_frame_mammal <- lapply(list_longlat_mammal,data.frame)
-list_xy_mammal <- data_frame_mammal[[1]]
-
-data_frame_reptile <- lapply(list_longlat_reptile,data.frame)
-list_xy_reptile <- data_frame_reptile[[1]]
-
-data_frame_amphibian <- lapply(list_longlat_amphibian,data.frame)
-list_xy_amphibian <- data_frame_amphibian[[1]]
-
-data_frame_aves <- lapply(list_longlat_aves,data.frame)
-list_xy_aves <- data_frame_aves[[1]]
-```
-```{r longlat to sp, spatial point object}
-
-#----------------------------
-# longlat to sp. sp::SpatialPoints
-#----------------------------
-
-list_spatial_mammal <- sapply(
-list_xy_mammal,
-function(x){
-    SpatialPoints(x, proj4string=CRS("+proj=longlat +datum=WGS84"))
-  }
-)
-
-list_spatial_reptile <- sapply(
-  list_xy_reptile,
-  function(x){
-    SpatialPoints(x, proj4string=CRS("+proj=longlat +datum=WGS84"))
-  }
-)
-
-list_spatial_amphibian <- sapply(
-  list_xy_amphibian,
-  function(x){
-    SpatialPoints(x, proj4string=CRS("+proj=longlat +datum=WGS84"))
-  }
-)
-
-
-list_spatial_aves <- sapply(
-  list_xy_aves,
-  function(x){
-    SpatialPoints(x, proj4string=CRS("+proj=longlat +datum=WGS84"))
-  }
-)
-
-```
-
-
-```{r Spatial Points visualize with leaflet}
-
-leaflet(list_xy_amphibian$Rana_temporaria) %>%
-addTiles() %>%
-addMarkers(lng=~longitude, lat=~latitude, clusterOptions = markerClusterOptions())
-
-```
-
-```{r}
-leaflet(list_xy_mammal$X27) %>%
-addTiles() %>%
-addMarkers(lng=~longitude, lat=~latitude)
-```
-
-```{r}
-bios <- paste0("E:/residual_sdm/", list.files(pattern="*.tif", path = "E:/residual_sdm"))
-stackbio <- stack(bios)
-```
-
-
-
-```{r extract, eval=FALSE, include=FALSE}
-#----------------------------
-# extract bio + spatial points 
-#----------------------------
-tic("extract_mammal")
-extract_spatial_mammal_lapply <- lapply(
-  list_spatial_mammal,
-  function(x){
-    extract(stackbio, x)
-  }
-)
-toc()
-
-tic("extract_reptile")
-extract_spatial_reptile_lapply <- lapply(
-  list_spatial_reptile,
-  function(x){
-    extract(stackbio, x)
-  }
-)
-toc()
-
-tic("extract_amphibian")
-extract_spatial_amphibian_lapply <- lapply(
-  list_spatial_amphibian,
-  function(x){
-    extract(stackbio, x)
-  }
-)
-toc()
-
-tic("extract_aves")
-extract_spatial_aves_lapply <- lapply(
-  list_spatial_aves,
-  function(x){
-    extract(stackbio, x)
-  }
-)
-toc()
-
-```
-
-```{r furrr::future_map for speedy extract, eval=FALSE, include=FALSE}
-#Furrr::future_map for speedy extract
-extracting_stackbio <- function(x) {extract(stackbio, x)}
-pb <- progress::progress_bar$new(total = 100)
-purrr::map(x, ~{pb$tick(); Sys.sleep(0.1)})
-
-
-tic("extract_furrr_mammal")
-extract_spatial_mammal_furrr <- furrr::future_map(.x = list_spatial_mammal, .f = extracting_stackbio)
-toc()
-
-tic("extract_furrr_reptile")
-extract_spatial_reptile_furrr <- furrr::future_map(.x = list_spatial_reptile, .f = extracting_stackbio)
-toc()
-
-tic("extract_furrr_amphibian")
-extract_spatial_amphibian_furrr <- furrr::future_map(.x = list_spatial_amphibian, .f = extracting_stackbio)
-toc()
-
-tic("extract_furrr_aves")
-extract_spatial_aves_furrr <- furrr::future_map(.x = list_spatial_aves, .f = extracting_stackbio, .options = furrr_options(seed = T))
-toc()
-```
-
-```{r save extracted values}
-
-extract_mammal_names <- paste0("E:/extract/mammal/extract_", list_origin_mammal, ".csv")
-extract_mammal_forsave <- map(extract_spatial_mammal_lapply, data.frame) 
-map2(extract_mammal_forsave, extract_mammal_names, write_csv)
-
-extract_reptile_names <- paste0("E:/extract/reptile/extract_", list_origin_reptile, ".csv")
-extract_reptile_forsave <- map(extract_spatial_reptile_lapply, data.frame) 
-map2(extract_reptile_forsave, extract_reptile_names, write_csv)
-
-extract_aves_names <- paste0("E:/extract/aves/extract_", list_origin_aves, ".csv")
-extract_aves_forsave <- map(extract_spatial_aves_furrr, data.frame) 
-map2(extract_aves_forsave, extract_aves_names, write_csv)
-
-
-```
-.
-```{r read extracted values}
-
-extract_mammal_saved <- map(extract_mammal_names, read_csv)
-extract_reptile_saved <- map(extract_reptile_names, read_csv)
-extract_aves_saved <- map(extract_aves_names, read_csv)
-```
-
-```{r NAs point removal}
-na_lgl_mammal <-  map(extract_mammal_saved, complete.cases)
-na_lgl_mammal <-  map(extract_mammal_saved, is.na)
-
-list_spatial_mammal_na <- list()
-for (i in seq_along(1:length(list_spatial_mammal))){
-  list_spatial_mammal_na[[i]] <- list_spatial_mammal[[i]][na_lgl_mammal[[i]]]
-}
-
-
-na_aves <- extract_aves_saved %>% map(is.na) %>% map(sum)
-na_mammal <- extract_mammal_saved %>% map(is.na) %>% map(sum)
-
-randomPointsformap2 <- function(x,y){randomPoints(x, 1000, y)}
-
-points_mammal_na <- map2(top4_pc2_mammal.tif.stack, list_spatial_mammal, randomPointsformap2)
-
-train_fold5_aves <- list()
-for (i in seq_along(1:length(list_spatial_aves))){ 
-                      train_fold5_aves[[i]] <- list_spatial_aves[[i]][fold5_aves[[i]] != 1, ]}
-
-
-```
-
-
-
-so, let's check the extracted results.
-How much NAs? What's their range? What's different with standardize?
-
-1. NAs
-```{r NAs Check}
-a <- map(top4_pc1_amphibian_sd, as.tibble)
-b <- map(top4_pc1_amphibian, as.tibble)
-map2(a,b, all_equal)
-
-a<- function(x){sum(is.na(x))}
-
-
-b<- standard_amphibian[[1]]
-d <- na.omit(standard_amphibian)
-
-a(d$Rana_temporaria)
-
-map(standard_amphibian_naomit, a)
-
-z <- na.omit(d$Rana_temporaria)
-
-a(d) 
-
-standard_amphibian_na <- map(standard_amphibian, na.omit)
-
-map(extract_spatial_aves_furrr, na.omit)
-
-```
-
-# CH.2 Decimal places
-
-```{r check data : decimal correct}
-
+```{r mammal dataset}
+#bind two mammal dataset
+mammal.csv <- data.table::fread(file = "out/mammal/realout_mammal.csv")
+reptile.csv. <- data.table::fread(file = "out/reptile/realout_reptile.csv")
+amphibian.csv <- data.table::fread(file = "out/amphibian/realout_amphibian.csv")
+mammal.csv <- data.table::fread(file = "out/mammal/realout_mammal.csv")
+
+##coordinate NAs removal
+mammal.csv <- filter(mammal.csv, complete.cases(mammal.csv$decimalLatitude))
+reptile.csv <- filter(reptile.csv, complete.cases(reptile.csv$decimalLatitude))
+amphibian.csv <- filter(amphibian.csv, complete.cases(amphibian.csv$decimalLatitude))
+
+#decimal lower removal
 decimalplaces <- function(x) {
   ifelse(abs(x - round(x)) > .Machine$double.eps^0.5,
          nchar(sub('^\\d+\\.', '', sub('0+$', '', as.character(x)))),
          0)
 }
 
-filter_cd3 <- function(x){filter(x, decimalplaces(longitude) >= 3)}
-filter_cd3 <- function(x){filter(x, decimalplaces(latitude) >= 3)}
+#filter long, lat lower than 3 decimal places
+filter_longd3 <- function(x){filter(x, decimalplaces(decimalLongitude) >= 3)}
+filter_lad3 <- function(x){filter(x, decimalplaces(decimalLatitude) >= 3)}
 
-out_mammal <- map(out_mammal, filter_cd3)
-out_reptile <- map(out_reptile, filter_cd3)
-out_amphibian <- map(out_amphibian, filter_cd3)
-out_aves <- map(out_aves, filter_cd3)
+mammal.csv <- filter_longd3(mammal.csv)
+mammal.csv <- filter_lad3(mammal.csv)
+
+reptile.csv <- filter_longd3(reptile.csv)
+reptile.csv <- filter_lad3(reptile.csv)
+
+amphibian.csv <- filter_longd3(amphibian.csv)
+amphibian.csv <- filter_lad3(amphibian.csv)
+
+mammal.csv <- filter_longd3(mammal.csv)
+mammal.csv <- filter_lad3(mammal.csv)
+
+#add decimal palces column 
+mutate_long <- function(x){mutate(x, decimalplaces_long = decimalplaces(decimalLongitude))}
+mutate_lat <- function(x){mutate(x, decimalplaces_lat = decimalplaces(decimalLatitude))}
+
+mammal.csv <- mutate_long(mammal.csv)
+mammal.csv <- mutate_lat(mammal.csv)
+
+reptile.csv <- mutate_long(reptile.csv)
+reptile.csv <- mutate_lat(reptile.csv)
+
+amphibian.csv <- mutate_long(amphibian.csv)
+amphibian.csv <- mutate_lat(amphibian.csv)
+
+#find duplicated points
+unique.longlat <- function(x){dplyr::distinct(x, decimalLongitude, decimalLatitude, .keep_all = T)}
+
+mammal.csv <- unique.longlat(mammal.csv)
+reptile.csv <- unique.longlat(reptile.csv)
+amphibian.csv <- unique.longlat(amphibian.csv)
+
+#1st wrangling score
+ggplot(mammal.csv, aes(x = species)) +
+  geom_bar(stat = "count")+ 
+  theme(axis.text.x=element_text(angle=45, hjust=1))
+  
+ggplot(reptile.csv, aes(x = species)) +
+  geom_bar(stat = "count")+ 
+  theme(axis.text.x=element_text(angle=45, hjust=1))
+
+#save to list.
+
+
+dt.mammal <- list()
+for (i in 1:nrow(specieslist_mammal[,1])){
+ dt.mammal[[i]] <- filter(mammal.csv, species == specieslist_mammal[[1]][i])
+}
+
+dt.reptile <- list()
+for (i in 1:nrow(specieslist_reptile[,1])){
+ dt.reptile[[i]] <- filter(reptile.csv, species == specieslist_reptile[[1]][i])
+}
+
+dt.amphibian <- list()
+for (i in 1:nrow(specieslist_amphibian[,1])){
+ dt.amphibian[[i]] <- filter(amphibian.csv, species == specieslist_amphibian[[1]][i])
+}
+```
+
+> group_by(mammal.csv, species)
+# A tibble: 984,384 x 52
+# Groups:   species [35]
+
+mammal은 35종류로 나눠 떨어지지만
+
+> group_by(reptile.csv, species)
+# A tibble: 787,244 x 52
+# Groups:   species [106]
+
+파충류는 애초에 96종을 요청했음에도 종이 106종이다. 아종이 분리된 것이다.
+이들을 묶어야한다.
+
+원인은 Ameiva ameiva였다. 
+
+```{r}
+reptile.csv %>% 
+  group_by(species) %>%
+  summarise(n = length(species))
+```
+다 더해도 얼마 안되므로(601) 묶기 귀찮으니 그냥 다 버린다.
+
+
+map_int(dt.mammal, nrow)
+[1]   3807   5517 108791   1643  12515 116916   4316  76928   6348   2376  31175  27682
+[13]   4779  13967   8347    941  14988   3670  53991   9536  24653  92944  34289  31080
+[25]  16946   3751   2664   7028   3084  41293  25914  33268  43682   7778 107777
+```{r}
+specieslist_mammal[16,1]
+```
+박쥐라서 중복 위치가 많았나보다. 조금 부족하지만 넘어간다.
+
+map_int(dt.reptile, nrow)
+[1]  6669 12821   108 23189 23335  1793 22379  4341  5187 10406  2785  5821  9006 16858
+[15]  2942 21560     0  7326  5486  8903  9851  4744  5877  3296  2261  2261  4718  9328
+[29]  1813  3283 10400   685  2015  1814  4511   163  3909  6618  3938  8696  3053  8894
+[43]  3338  1833  9973  9654 12511  5102  8299  1983  1624  1613  2118  1933 13672  4554
+[57]  9970 16386  5037 12509  7216  4268   547 19513  5406   673 19646  3999 15467  3222
+[71]  7607  4441 39003  7222  5171   196  2506  9442  7113  1068 15816  2955  8097  6240
+[85] 30793  7767 16408  3048 36902 21514  4356 10760  2363 14640  2277 24127
+```{r}
+
+specieslist_reptile[c(3,17,32,36,76),1]
+```
+백 단위가 몇종 보이긴 하지만 넘어간다. Cnemidophorus exsanguis가 0개다. 
+
+```{r}
+reptile.csv %>% 
+  filter(taxonKey == 5227545)
+```
+Aspidoscelis exsanguis란다.. 
+넣어주자..remove Ameiva too
+
+```{r}
+dt.reptile[[17]] <- reptile.csv %>% 
+  filter(taxonKey == 5227545)
+
+dt.reptile[[3]] <- NULL
+```
+
+map_int(dt.mammal, nrow)
+
+ [1]   2009   3817 108759   1577  11105 116715   4269  76878   6348   2023  31150  27682
+[13]   3643  12450   6676    860  14965   3276  50943   9536  24118  92891  34159  31080
+[25]  16946   3690   2344   7025   3081  40339  25012  33204  43682   6629 106409
+
+map_int(dt.reptile, nrow)
+
+[1]  6669 12821 23189 23335  1793 22379  4341  5187 10406  2785  5821  9006 16858  2942
+[15] 21560   350  7326  5486  8903  9851  4744  5877  3296  2261  2261  4718  9328  1813
+[29]  3283 10400   685  2015  1814  4511   163  3909  6618  3938  8696  3053  8894  3338
+[43]  1833  9973  9654 12511  5102  8299  1983  1624  1613  2118  1933 13672  4554  9970
+[57] 16386  5037 12509  7216  4268   547 19513  5406   673 19646  3999 15467  3222  7607
+[71]  4441 39003  7222  5171   196  2506  9442  7113  1068 15816  2955  8097  6240 30793
+[85]  7767 16408  3048 36902 21514  4356 10760  2363 14640  2277 24127
+
+이제 양서류를 해보자
+
+map_int(dt.amphibian, nrow)
+ [1]  3650  5869  2307  2440 26501  6934  3156  1998 46021 41418  2901  1672  1521   704  7879
+[16]  3451  2725  3327  2564  8792  5121  1453 14405  7362 23759 28652 23035     0 10082 13624
+[31]   456 12899  5778 10270 15027  3407   676   512  1688  8769  7528  2267 55643 16139 12288
+[46]  1855  4162  5433 29245  1464
+
+28번째 양서류 종이 0개가 나왔다. 
+```{r}
+specieslist_amphibian[28,1]
+```
+
+내가 요청했던건 리토리아 였고
+
+```{r}
+amphibian.csv %>% 
+  group_by(species) %>%
+  summarise(n = length(species))
+```
+
+받아온 자료에는 43번째에 Ranoidea aurea로 되어있었다. 종명이 개정된듯하다.
+요청종 엑셀 목록을 수정한다.
+
+
+
+24, 25번 종의 수가 겹친다. 엑셀에서 중복 열이 두개 있어서 그랬다.
+같은 종이 두번 필터된 것이다. 하나를 제거한다.
+
+포유류 35종, 파충류 94종. 양서류 50종. 503950
+2,273,256개.
+
+```{r}
+#save to sp
+library(sp)
+
+sp.wgs84 <- function(x){
+    SpatialPointsDataFrame(coords = x[,22:23], 
+                  proj4string=CRS("+proj=longlat +datum=WGS84"), 
+                  data = x[,1:52])
+  }
+
+sp_mammal <- list()
+for (i in 1:length(dt.mammal)){
+  sp_mammal[[i]] <- sp.wgs84(dt.mammal[[i]])
+} 
+
+sp_reptile <- list()
+for (i in 1:length(dt.reptile)){
+  sp_reptile[[i]] <- sp.wgs84(dt.reptile[[i]])
+} 
+
+sp_amphibian <- list()
+for (i in 1:length(dt.amphibian)){
+  sp_amphibian[[i]] <- sp.wgs84(dt.amphibian[[i]])
+} 
+
+#save to sf
+library(sf)
+
+sf_df <- function(x){sf::st_as_sf(x, 
+                                  coords = c("decimalLongitude", "decimalLatitude"), 
+                                  crs = 4326,
+                                  remove = F)
+}
+
+sf_mammal <- map(dt.mammal, sf_df)
+sf_reptile <- map(dt.reptile, sf_df)
+sf_amphibian <- map(dt.amphibian, sf_df)
+
+##cut geographical outliers - QGIS cut
+
+sf_mammal.q<- list()
+for (i in 1:length(sf_mammal)){
+sf_mammal.q[[i]] <- sf_mammal[[i]][,53]
+}
+
+sf_reptile.q <- list()
+for (i in 1:length(sf_reptile)){
+sf_reptile.q[[i]] <- sf_reptile[[i]][,53]
+}
+
+sf_amphibian.q<- list()
+for (i in 1:length(sf_amphibian)){
+sf_amphibian.q[[i]] <- sf_amphibian[[i]][,53]
+}
+
+for (i in 1:length(sf_mammal)){
+sf::write_sf(sf_mammal.q[[i]], paste0("shp/sf_mammal/",sf_mammal[[i]]$species[1],".shp"))
+}
+
+for (i in 1:length(sf_reptile.q)){
+sf::write_sf(sf_reptile.q[[i]], paste0("shp/sf_reptile/",sf_reptile[[i]]$species[1],".shp"))
+}
+
+for (i in 1:length(sf_amphibian)){
+sf::write_sf(sf_amphibian.q[[i]], paste0("shp/sf_amphibian/",sf_amphibian[[i]]$species[1],".shp"))
+}
+
+sf_mammal.q <- list()
+for (i in 1:35){
+sf_mammal.q[[i]] <- sf::st_read(dsn = paste0("shp/sf_mammal/",sf_mammal[[i]]$species[1],".shp"))
+}
+
+sf_reptile.q <- list()
+for (i in 1:length(sf_reptile)){
+sf_reptile.q[[i]] <- sf::st_read(dsn = paste0("shp/sf_reptile/",sf_reptile[[i]]$species[1],".shp"))
+}
+
+sf_amphibian.q <- list()
+for (i in 1:length(sf_amphibian)){
+sf_amphibian.q[[i]] <- sf::st_read(dsn = paste0("shp/sf_amphibian/",sf_amphibian[[i]]$species[1],".shp"))
+}
+
+# How much % points we cutted
+( unlist(map(sf_mammal, nrow)) - unlist(map(sf_mammal.q, nrow)) ) / map_int(sf_mammal, nrow) *100
+( unlist(map(sf_reptile, nrow)) - unlist(map(sf_reptile.q, nrow)) ) / map_int(sf_reptile, nrow) *100
+( unlist(map(sf_amphibian, nrow)) - unlist(map(sf_amphibian.q, nrow)) ) / map_int(sf_amphibian, nrow) *100
+
+# confirm ? to use sf_species.q ????
+# Y? N?
 
 ```
 
-```{r correct data : mutate deciam places}
+```{r confirm}
+sf_mammal <- sf_mammal.q
+rm(sf_mammal.q)
+rm(sf_mammal.)
 
-mutate_long <- function(x){mutate(x, decimalplaces_long = decimalplaces(longitude))}
-mutate_lat <- function(x){mutate(x, decimalplaces_lat = decimalplaces(latitude))}
+sp_mammal <- map(sf_mammal.q, as_Spatial)
 
-out_mammal <- map(out_mammal, mutate_long)
-out_reptile <- map(out_reptile, mutate_long)
-out_amphibian <- map(out_amphibian, mutate_long)
-out_aves <- map(out_aves, mutate_long)
+sf_reptile <- sf_reptile.q
+rm(sf_reptile.q)
+rm(sf_reptile.)
 
-out_mammal <- map(out_mammal, mutate_lat)
-out_reptile <- map(out_reptile, mutate_lat)
-out_amphibian <- map(out_amphibian, mutate_lat)
-out_aves <- map(out_aves, mutate_lat)
+sp_reptile <- map(sf_reptile.q, as_Spatial)
+
+sp_amphibian <- map(sf_amphibian.q, as_Spatial)
+
+
 
 ```
 
-```{r viz data : hist decimal places}
-map(map(out_mammal,63), hist)
-map(map(out_mammal,64), hist)
-```
+removed list from sf_reptile
+17 Cnemidophorus exsanguis has zero record.
+32 Emoia caeruleocauda 677
+36 Gekko japonicus 162
+63 Phyllodactylus tuberculosus 545 
+66 Podarcis hispanicus 673
+76 Sphaerodactylus macrolepis 196 
+
+total 90 reptile species passed wrangling.
 
 
-# CH.n Save out data
 
-# CH.n Load out data
-
-```{r bring data : set location path n read}
-out_mammal <- paste0("E:/out/mammal/", list.files(pattern="*.csv", path = "E:/out/mammal"))
-out_reptile <- paste0("E:/out/reptile/", list.files(pattern="*.csv", path = "E:/out/reptile"))
-out_amphibian <- paste0("E:/out/amphibian/", list.files(pattern="*.csv", path = "E:/out/amphibian"))
-out_aves <- paste0("E:/out/aves/", list.files(pattern="*.csv", path = "E:/out/aves"))
-
-out_mammal <- map(out_mammal, read_csv)
-out_reptile <- map(out_reptile, read_csv)
-out_amphibian <- map(out_amphibian, read_csv)
-out_aves <- map(out_aves, read_csv)
-```
 
 # CH.n Load bio-climate data
 ```{r bring data : bio climate}
-biopath <- paste0("E:/bios/", list.files(pattern="*.tif", path = "E:/bios"))
+library(raster)
+
+biopath <- paste0("bios/", list.files(pattern="*.tif", path = "bios/"))
 stackbio <- raster::stack(biopath)
+bio1 <- raster::stack(biopath[1])
 ```
-
-# CH.n Making sf, sp, xy, longlat, data.frame
-
-```{r munging data : simple feature conversion}
-
-sf_df <- function(x){sf::st_as_sf(x, coords = c("longitude", "latitude"), crs = 4326)}
-
-sf_mammal <- map(out_mammal, sf_df)
-sf_reptile <- map(out_reptile, sf_df)
-sf_amphibian <- map(out_amphibian, sf_df)
-sf_aves <- map(out_aves, sf_df)
-
-```
-```{r converse data : sp::SpatialPoints}
-list_longlat_mammal <- rep(list('empty'), length(1))
-for (i in 1:length(1)){
-  list_longlat_mammal[[i]] <- sapply(
-    out_mammal,
-    function(x){
-      cbind(x[,2:3])
-      })
-}
-
-list_longlat_reptile <- rep(list('empty'), length(1))
-for (i in 1:length(1)){
-  list_longlat_reptile[[i]] <- sapply(
-    out_reptile,
-    function(x){
-      cbind(x[,2:3])
-      })
-}
-
-list_longlat_amphibian <- rep(list('empty'), length(1))
-for (i in 1:length(1)){
-  list_longlat_amphibian[[i]] <- sapply(
-    out_amphibian,
-    function(x){
-      cbind(x[,2:3])
-      })
-}
-
-list_longlat_aves <- rep(list('empty'), length(1))
-for (i in 1:length(1)){
-  list_longlat_aves[[i]] <- sapply(
-    out_aves,
-    function(x){
-      cbind(x[,2:3])
-      })
-}
-
-data_frame_mammal <- lapply(list_longlat_mammal,data.frame)
-list_xy_mammal <- data_frame_mammal[[1]]
-
-data_frame_reptile <- lapply(list_longlat_reptile,data.frame)
-list_xy_reptile <- data_frame_reptile[[1]]
-
-data_frame_amphibian <- lapply(list_longlat_amphibian,data.frame)
-list_xy_amphibian <- data_frame_amphibian[[1]]
-
-data_frame_aves <- lapply(list_longlat_aves,data.frame)
-list_xy_aves <- data_frame_aves[[1]]
-
-list_spatial_mammal <- sapply(
-list_xy_mammal,
-function(x){
-    SpatialPoints(x, proj4string=CRS("+proj=longlat +datum=WGS84"))
-  }
-)
-
-list_spatial_reptile <- sapply(
-  list_xy_reptile,
-  function(x){
-    SpatialPoints(x, proj4string=CRS("+proj=longlat +datum=WGS84"))
-  }
-)
-
-list_spatial_amphibian <- sapply(
-  list_xy_amphibian,
-  function(x){
-    SpatialPoints(x, proj4string=CRS("+proj=longlat +datum=WGS84"))
-  }
-)
-
-
-list_spatial_aves <- sapply(
-  list_xy_aves,
-  function(x){
-    SpatialPoints(x, proj4string=CRS("+proj=longlat +datum=WGS84"))
-  }
-)
-
-```
-
-# Extracting bio-cliam
-```{r}
-```{r munging data : bio extract}
-extracting_stackbio <- function(x) {raster::extract(stackbio, x)}
-
-extract_spatial_mammal_furrr <- furrr::future_map(.x = list_spatial_mammal, .f = extracting_stackbio)
-
-extract_spatial_reptile_furrr <- furrr::future_map(.x = list_spatial_reptile, .f = extracting_stackbio)
-toc()
-
-tic("extract_furrr_amphibian")
-extract_spatial_amphibian_furrr <- furrr::future_map(.x = list_spatial_amphibian, .f = extracting_stackbio)
-toc()
-
-tic("extract_furrr_aves")
-extract_spatial_aves_furrr <- furrr::future_map(.x = list_spatial_aves, .f = extracting_stackbio, .options = furrr_options(seed = T))
-
-
-```
-```{r munging data : cbind bio to sf_species}
-
-sf_mammal <- map2(sf_mammal, extract_spatial_mammal_furrr, cbind)
-sf_reptile <- map2(sf_reptile, extract_spatial_reptile_furrr, cbind)
-sf_amphibian <- map2(sf_amphibian, extract_spatial_amphibian_furrr, cbind)
-sf_aves <- map2(sf_aves, extract_spatial_aves_furrr, cbind)
-
-```
-
-# CH.3 Bio-climate NAs
-```{r}
-
-map(sf_mammal, sum(is.na()))
-
-sum(is.na(sf_mammal[[1]][,63:81]))
-
-for(i in 64:81){test <- sum(is.na(sf_mammal[[1]][,i]))}
-
-sum(is.na(sf_mammal[[1]][,63:81]))/19
-sum(is.na(sf_mammal[[2]][,63:81]))/19
-
-na.sum.mammal <- vector()
-for (i in seq_along(1:length(sf_mammal))){ 
-                      na.sum.mammal[i] <- sum(is.na(sf_mammal[[i]][,63:81]))/19}
-
-na.sum.reptile <- vector()
-for (i in seq_along(1:length(sf_reptile))){ 
-                      na.sum.reptile[i] <- sum(is.na(sf_reptile[[i]][,63:81]))/19}
-
-na.sum.amphibian <- vector()
-for (i in seq_along(1:length(sf_amphibian))){ 
-                      na.sum.amphibian[i] <- sum(is.na(sf_amphibian[[i]][,63:81]))/19}
-
-na.sum.aves <- vector()
-for (i in seq_along(1:length(sf_aves))){ 
-                      na.sum.aves[i] <- sum(is.na(sf_aves[[i]][,63:81]))/19}
-#########################################################################################
-total.sum.mammal <- vector()
-for (i in seq_along(1:length(sf_mammal))){ 
-                      total.sum.mammal[i] <- nrow(sf_mammal[[i]])}
-
-total.sum.reptile <- vector()
-for (i in seq_along(1:length(sf_reptile))){ 
-                      total.sum.reptile[i] <- nrow(sf_reptile[[i]])}
-
-total.sum.amphibian <- vector()
-for (i in seq_along(1:length(sf_amphibian))){ 
-                      total.sum.amphibian[i] <- nrow(sf_amphibian[[i]])}
-
-total.sum.aves <- vector()
-for (i in seq_along(1:length(sf_aves))){ 
-                      total.sum.aves[i] <- nrow(sf_aves[[i]])}
-########################################################################################
-
-na.sum.mammal / total.sum.mammal *100
-na.sum.reptile / total.sum.reptile *100
-na.sum.amphibian / total.sum.amphibian *100
-na.sum.aves / total.sum.aves *100
-
-total.sum.mammal - na.sum.mammal
-total.sum.aves - na.sum.aves
-```
-```{r data munging : NA removaled sf_species}
-
-for (i in 1:length(sf_mammal)){sf_mammal[[i]] <- sf_mammal[[i]][!is.na(sf_mammal[[i]][,63:81])[,1],]}
-
-for (i in 1:length(sf_reptile)){sf_reptile[[i]] <- sf_reptile[[i]][!is.na(sf_reptile[[i]][,63:81])[,1],]}
-
-for (i in 1:length(sf_amphibian)){sf_amphibian[[i]] <- sf_amphibian[[i]][!is.na(sf_amphibian[[i]][,63:81])[,1],]}
-
-for (i in 1:length(sf_aves)){sf_aves[[i]] <- sf_aves[[i]][!is.na(sf_aves[[i]][,63:81])[,1],]}
-
-```
-
-Just prepared clean presence points.
-ahead for random background points.
-
-sf를 내가 만든 랜덤 포인트 생성기에 넣었더니 에러가 나서 sp만 먹는듯 하다.
-```{r}
-map(list_spatial_mammal, length)
-map(sf_mammal, dim)
-
-```
-sp는 NA를 제거하지 않았기 때문에 크기가 다르다. 
-sp를 업데이트하자.
-
-```{r data conversion : sf to sp }
-
-list_spatial_mammal <- map(
-sf_mammal, sf::as_Spatial  
-)
-
-list_spatial_reptile <- map(
-sf_reptile, sf::as_Spatial  
-)
-
-list_spatial_amphibian <- map(
-sf_amphibian, sf::as_Spatial  
-)
-
-list_spatial_aves <- map(
-sf_aves, sf::as_Spatial  
-)
-  
-```
-이제 완벽한 sf와 sp데이터가 만들어졌다. 
-모델링 과정에 투입하기에는 데이터가 크므로 파일럿 테스트용 작은 데이터를 만들어 보겠다.
-또한, 모델링 과정에서 SDMtune::prepareSWD는 좌표가 데이터 테이블로 필요하다. 
-변수로 넣어주자.
-
-```{r data munging : pilot test data}
-sf_mammal_pilot <- list()
-for (i in 1:length(sf_mammal)){
-sf_mammal_pilot[[i]] <- sf_mammal[[i]][1:100,]  
-}
-
-sp_mammal_pilot <- list()
-for (i in 1:length(sf_mammal)){
-  sp_mammal_pilot[[i]] <- list_spatial_mammal[[i]][1:100,]
-}
-sp_mammal_pilot <- list_spatial_mammal[[1]][1:1000,]
-sf_mammal_pilot <- list(sf_mammal_pilot)
-sp_mammal_pilot <- list(sp_mammal_pilot)
-
-
-
-
-```
-
-
-```{r data munging : add long lat variables}
-
-
-for (i in 1:length(sf_mammal)){sf_mammal[[i]] <- mutate(sf_mammal[[i]], 
-                          long = sp::coordinates(list_spatial_mammal[[i]])[,1],
-                          lat = sp::coordinates(list_spatial_mammal[[i]])[,2])}
-
-for (i in 1:length(sf_reptile)){sf_reptile[[i]] <- mutate(sf_reptile[[i]], 
-                          long = sp::coordinates(list_spatial_reptile[[i]])[,1],
-                          lat = sp::coordinates(list_spatial_reptile[[i]])[,2])}
-
-for (i in 1:length(sf_amphibian)){sf_amphibian[[i]] <- mutate(sf_amphibian[[i]], 
-                          long = sp::coordinates(list_spatial_amphibian[[i]])[,1],
-                          lat = sp::coordinates(list_spatial_amphibian[[i]])[,2])}
-
-for (i in 1:length(sf_mammal)){sf_mammal[[i]] <- mutate(sf_mammal[[i]], 
-                          long = sp::coordinates(list_spatial_mammal[[i]])[,1],
-                          lat = sp::coordinates(list_spatial_mammal[[i]])[,2])}
-
-
-
-```
-
-SDMtune::prepareSWD 는 "데이터 프레임" 만 쳐드시겠단다. 그것도 xy 변수 2개만 있는걸로.
-데이터 프레임을 만들어 상납한다.
-
-```{r data munging : from sf to data.table}
-
-maker_shp <-function(x){write_csv(x, paste0(x$species[1], ".csv"))}
-
-sfd_mammal_pilot <- map(sf_mammal_pilot, as.data.frame)
-
-sfd_mammal <- map(sf_mammal, as.data.frame)
-sfd_reptile <- map(sf_reptile, as.data.frame)
-sfd_amphibian <- map(sf_amphibian, as.data.frame)
-
-
-map(sf_mammal, maker_shp)
-map(sf_reptile, maker_shp)
-map(sf_amphibian, maker_shp)
-map(sf_amphibian, as.data.frame)
-map(sf_aves, as.data.frame)
-
-
-
-
-
-```
-
 
 
 
 ```{r data munging : random points for background}
+library(dismo)
 
-random_bg2x <- function(x,y){randomPoints(stackbio, n = length(x), p = x, ext = y, excludep = TRUE)}
+random_bg1x <- function(x,y){randomPoints(stackbio, n = length(x), p = x, ext = y, excludep = TRUE)}
+
+# r is a raster, n is the number of points requested
+fastRandomPoints <- function(r, n) {
+  if(raster::nlayers(r) > 1) r <- r[[1]]
+  v <- raster::getValues(r)
+  v.notNA <- which(!is.na(v))
+  x <- sample(v.notNA, n)
+  pts <- raster::xyFromCell(r, x)
+  return(pts)
+}
 
 bbox_mammal <- list()
 for (i in 1:length(sf_mammal)){
-  bbox_mammal[[i]] <- sf::st_bbox(sf_mammal[[i]])}
+  bbox_mammal[[i]] <- sf::st_bbox(sf_mammal.q[[i]])}
 
 bbox_reptile <- list()
 for (i in 1:length(sf_reptile)){
-  bbox_reptile[[i]] <- sf::st_bbox(sf_reptile[[i]])}
+  bbox_reptile[[i]] <- sf::st_bbox(sf_reptile.q[[i]])}
 
 bbox_amphibian <- list()
 for (i in 1:length(sf_amphibian)){
-  bbox_amphibian[[i]] <- sf::st_bbox(sf_amphibian[[i]])}
+  bbox_amphibian[[i]] <- sf::st_bbox(sf_amphibian.q[[i]])}
 
 bbox_aves <- list()
 for (i in 1:length(sf_aves)){
-  bbox_aves[[i]] <- sf::st_bbox(sf_aves[[i]])}
-
-bbox_mammal_pilot <- list()
-for (i in 1:length(sf_mammal_pilot)){
-  bbox_mammal_pilot[[i]] <- sf::st_bbox(sf_mammal_pilot[[i]])}
+  bbox_aves[[i]] <- sf::st_bbox(sf_aves.q[[i]])}
 
 
-bg2x_mammal <- furrr::future_map2(list_spatial_mammal, bbox_mammal, random_bg2x)
-bg2x_reptile <- map2(list_spatial_reptile, bbox_reptile, random_bg2x)
+library(furrr)
+plan(multisession, workers = 50)
+furrr::future_map2(a, b, random_bg1x, .progress = T)
+
+a <- list()
+a[[1]] <- sp_mammal[[1]]
+b <- list()
+b[[1]] <- bbox_mammal[[1]]
+
+bg1x_mammal <- furrr::future_map2(sp_mammal, bbox_mammal, random_bg1x, .options = furrr_options(seed = TRUE))
+
+
+bg1x_reptile <- furrr::future_map2(sp_reptile, bbox_reptile, random_bg1x, .options = furrr_options(seed = TRUE), .progress = T)
+
+bg1x_amphibian <- furrr::future_map2(sp_amphibian, bbox_amphibian, random_bg1x, .options = furrr_options(seed = TRUE), .progress = T)
+
+
 bg2x_amphibian <- furrr::future_map2(list_spatial_amphibian, bbox_amphibian, random_bg2x)
 bg2x_aves <- furrr::future_map2(list_spatial_aves, bbox_aves, random_bg2x)
 bg2x_mammal_pilot <- furrr::future_map2(sp_mammal_pilot, bbox_mammal_pilot, random_bg2x)
 
+sf_bg <- function(x){sf::st_as_sf(x, coords = c("x", "y"), crs = 4326)}
 
+bg1x_mammal. <- map(map(bg1x_mammal, as.data.frame), sf_bg)
+bg1x_reptile. <- map(map(bg1x_reptile, as.data.frame), sf_bg)
+bg1x_amphibian. <- map(map(bg1x_amphibian, as.data.frame), sf_bg)
+
+for (i in 1:length(bg1x_mammal.)){
+sf::write_sf(bg1x_mammal.[[i]], paste0("shp/sf_mammal/bg1x_mammal/bg1x_",sf_mammal[[i]]$species[1],".shp"))
+}
+
+for (i in 1:length(bg1x_reptile.)){
+sf::write_sf(bg1x_reptile.[[i]], paste0("shp/sf_reptile/bg1x_reptile/bg1x_",sf_reptile[[i]]$species[1],".shp"))
+}
+
+for (i in 1:length(bg1x_amphibian.)){
+sf::write_sf(bg1x_amphibian.[[i]], paste0("shp/sf_amphibian/bg1x_amphibian/bg1x_",sf_amphibian[[i]]$species[1],".shp"))
+}
+
+
+
+bg1x_reptile. <- map(map(bg1x_reptile, as.data.frame), sf_bg)
+
+for (i in 1:length(bg1x_reptile.)){
+sf::write_sf(bg1x_reptile.[[i]], paste0("shp/",i,".shp"))
+}
+
+
+```
+
+```{r}
 cores <- parallel::detectCores() - 1
 cluster <- parallel::makeCluster(spec = cores)
 doParallel::registerDoParallel(cl = cluster)
@@ -834,9 +519,11 @@ for (i in 1:length(sfbg_reptile)){
 
 
 ```{r}
-bg1x_mammal <- paste0("C:/Users/Jeon/Documents/sdmtune/bg1x_mammal/", list.files(pattern="*.shp", path = "C:/Users/Jeon/Documents/sdmtune/bg1x_mammal"))
-bg1x_reptile <- paste0("C:/Users/Jeon/Documents/sdmtune/bg1x_reptile/", list.files(pattern="*.shp", path = "C:/Users/Jeon/Documents/sdmtune/bg1x_reptile"))
-bg1x_amphibian <- paste0("C:/Users/Jeon/Documents/sdmtune/bg1x_amphibian/", list.files(pattern="*.shp", path = "C:/Users/Jeon/Documents/sdmtune/bg1x_amphibian"))
+bg1x_mammal <- paste0("C:/Users/lophital/Documents/rsac_x_overfit/shp/sf_mammal/bg1x_mammal/", list.files(pattern="*.shp", path = "C:/Users/lophital/Documents/rsac_x_overfit/shp/sf_mammal/bg1x_mammal"))
+
+bg1x_reptile <- paste0("C:/Users/lophital/Documents/rsac_x_overfit/shp/sf_reptile/bg1x_reptile/", list.files(pattern="*.shp", path = "C:/Users/lophital/Documents/rsac_x_overfit/shp/sf_reptile/bg1x_reptile"))
+
+bg1x_amphibian <- paste0("C:/Users/lophital/Documents/rsac_x_overfit/shp/sf_amphibian/bg1x_amphibian/", list.files(pattern="*.shp", path = "C:/Users/lophital/Documents/rsac_x_overfit/shp/sf_amphibian/bg1x_amphibian"))
 
 bg1x_mammal <- map(bg1x_mammal, sf::st_read)
 bg1x_reptile <- map(bg1x_reptile, sf::st_read)
@@ -846,6 +533,84 @@ for (i in 1:length(bg1x_mammal)){bg1x_mammal[[i]] <- sf::st_coordinates(bg1x_mam
 for (i in 1:length(bg1x_reptile)){bg1x_reptile[[i]] <- sf::st_coordinates(bg1x_reptile[[i]])}
 for (i in 1:length(bg1x_amphibian)){bg1x_amphibian[[i]] <- sf::st_coordinates(bg1x_amphibian[[i]])}
 
+```
+
+```{r}
+sfd_mammal <- list()
+for (i in 1:length(sf_mammal.q)){
+sfd_mammal[[i]] <- data.frame(st_coordinates(sf_mammal.q[[i]])) %>%
+  mutate(species = sf_mammal[[i]][[10]][1])
+}
+
+sfd_reptile <- list()
+for (i in 1:length(sf_reptile.q)){
+sfd_reptile[[i]] <- data.frame(st_coordinates(sf_reptile.q[[i]])) %>%
+  mutate(species = sf_reptile[[i]][[10]][1])
+}
+
+
+sfd_amphibian <- list()
+for (i in 1:length(sf_amphibian.q)){
+sfd_amphibian[[i]] <- data.frame(st_coordinates(sf_amphibian.q[[i]])) %>%
+  mutate(species = specieslist_amphibian[[1]][i])
+}
+
+```
+
+
+
+
+
+
+
+```{r model data : prepareSWD}
+
+data.mammal_pilot <- list()
+for (i in 1:length(sf_mammal_pilot)){data.mammal_pilot[[i]] <- SDMtune::prepareSWD(
+  species = sf_mammal_pilot[[i]]$species[1], 
+  p = sfd_mammal_pilot[[i]][,83:84], 
+  a = bg2x_mammal_pilot[[i]], 
+  env = stackbio)}
+
+data.mammal <- list()
+for (i in 1:length(sf_mammal)){data.mammal[[i]] <- SDMtune::prepareSWD(
+  species = sf_mammal[[i]]$species[1], 
+  p = sfd_mammal[[i]][,83:84], 
+  a = bg1x_mammal[[i]], 
+  env = stackbio)}
+
+swdmaker <- function(x,y){SDMtune::prepareSWD(
+  species = x$species[1], 
+  p = x[,1:2], 
+  a = y, 
+  env = stackbio)}
+
+
+
+
+
+data.mammal <- furrr::future_map2(sfd_mammal, bg1x_mammal, swdmaker, .options = furrr_options(seed = TRUE), .progress = T)
+data.reptile <- furrr::future_map2(sfd_reptile, bg1x_reptile, swdmaker, .options = furrr_options(seed = TRUE), .progress = T)
+data.amphibian <- furrr::future_map2(sfd_amphibian, bg1x_amphibian, swdmaker)
+
+
+data.reptile <- list()
+for (i in 1:length(sf_reptile)){data.reptile[[i]] <- SDMtune::prepareSWD(
+  species = sf_reptile[[i]]$species[1], 
+  p = sfd_reptile[[i]][,83:84], 
+  a = bg1x_reptile[[i]], 
+  env = stackbio)}
+
+data.amphibian <- list()
+for (i in 1:length(sf_amphibian.q)){data.amphibian[[i]] <- SDMtune::prepareSWD(
+  species = sf_amphibian[[i]]$species[1], 
+  p = sfd_amphibian[[i]][,83:84], 
+  a = bg1x_amphibian[[i]], 
+  env = stackbio)}
+
+
+
+swd2csv(data, file_name = "data.csv")
 ```
 
 # CH.n Save all data into rdata
@@ -923,5 +688,10 @@ save(specieslist_aves, file = "E:/sdmtune/rdata/list_xy_aves.rdata")
 save(stackbio, file = "E:/sdmtune/rdata/stackbio.rdata")
 
 save(t.t.mammal_0.2, file = "E:/sdmtune/rdata/t.t.mammal_0.2.rdata")
+```
+
+fucking duplicated points
+```{r}
+
 ```
 
