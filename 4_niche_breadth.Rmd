@@ -46,13 +46,14 @@ until bio11, it is temperature. each category can be 2
 from 12 - 19, they are precipitation. each category can be 10 each.
 
 ```{r}
+data.mammal <- readr::read_rds(file = "data/data.mammal.rds")
 data.reptile <- readr::read_rds(file = "data/data.reptile.rds")
 ```
 
 
 ```{r}
 
-reaarange <- function(x){select(x@data, c(1,12,13,14,15,16,17,18,19,2,3,4,5,6,7,8,9,10,11))}
+reaarange <- function(x){dplyr::select(x@data, c(1,12,13,14,15,16,17,18,19,2,3,4,5,6,7,8,9,10,11))}
 
 for (i in 1:length(data.mammal)){
 data.mammal[[i]]@data <- reaarange(data.mammal[[i]])
@@ -88,6 +89,7 @@ biobreak <- list()
 for(i in 1:11){
 biobreak[[i]] <- bio.min[i]:bio.max[i]
 }
+
 for(i in 12:19){
 biobreak[[i]] <- (bio.min[i]:bio.max[i]*10)  
 }
@@ -144,8 +146,40 @@ b <- RInSp::like.Wi(a)
 plot in 2 PC axis, Z axis of SDM, Kernel density smoothing
 
 ```{r}
+library(FactoMineR)
+
+PCA_mammal <- list()
+for(i in 1:length(data.mammal)){
+PCA_mammal[[i]] <- FactoMineR::PCA(data.mammal[[i]]@data,
+                                   scale.unit = T,)
+}
+```
+
+
+
+```{r}
 library(ecospat)
-ecospat::ecospat.grid
+```
+
+
+```{r}
+mcp <- function (xy) {
+  xy <- as.data.frame(coordinates(xy))
+  coords.t <- chull(xy[, 1], xy[, 2])
+  xy.bord <- xy[coords.t, ]
+  xy.bord <- rbind(xy.bord[nrow(xy.bord), ], xy.bord)
+  return(SpatialPolygons(list(Polygons(list(Polygon(as.matrix(xy.bord))), 1))))
+  }
+```
+
+
+
+```{r}
+ecospat::ecospat.
+a <- ecospat::ecospat.grid.clim.dyn(sp = PCA_mammal[[1]]$ind$coord[,1:2],
+                               R = 57600)
+ecospat::ecospat.plot.niche()
+
 ```
 
 
