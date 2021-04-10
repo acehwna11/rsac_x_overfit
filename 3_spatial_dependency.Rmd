@@ -9,32 +9,84 @@ output: html_document
 library(tidyverse)
 library(spdep)
 ```
+```{r}
+library(furrr)
+future::plan(multisession, workers = 30)
+```
+
 
 ```{r}
 train_rndcv4k_mammal <- readr::read_rds(file = "train_test/train_rndcv4k_mammal.rds")
 test_rndcv4k_mammal <- readr::read_rds(file = "train_test/test_rndcv4k_mammal.rds")
 train_spcv4k_mammal <- readr::read_rds(file = "train_test/train_spcv4k_mammal.rds")
 test_spcv4k_mammal <- readr::read_rds(file = "train_test/test_spcv4k_mammal.rds")
+
+t.t.mammal_0.2 <- readr::read_rds(file = "t.t.mammal_0.2.rds")
+
 ```
+
+
 
 ```{r}
+train_rndcv4k_mammal.df <- list()
+for(i in 1:length(train_rndcv4k_mammal)){
+train_rndcv4k_mammal.df[[i]] <- slice(data.frame(prediction = train_rndcv4k_mammal[[i]],
+                                                long = t.t.mammal_0.2[[i]][[1]]@coords[,1],
+                                                lat = t.t.mammal_0.2[[i]][[1]]@coords[,2],
+                                                residual = 1 - train_rndcv4k_mammal[[i]])
+                                                , 1:sum(t.t.mammal_0.2[[i]][[1]]@pa == 1))
+}
 
+
+test_rndcv4k_mammal.df <- list()
+for(i in 1:length(test_rndcv4k_mammal)){
+test_rndcv4k_mammal.df[[i]] <- slice(data.frame(prediction = test_rndcv4k_mammal[[i]],
+                                   long = t.t.mammal_0.2[[i]][[2]]@coords[,1],
+                                   lat = t.t.mammal_0.2[[i]][[2]]@coords[,2],
+                                   residual = 1 - test_rndcv4k_mammal[[i]])
+                                   , 1:sum(t.t.mammal_0.2[[i]][[2]]@pa == 1))
+}
 ```
 
+
+
+classical moran's I with ape
+```{r}
+library(ape)
+
+resid.dists <- list()
+resid.dists.inv <- list()
+
+for (i in 1:length(train_rndcv4k_mammal.df)){
+resid.dists[[i]] <- as.matrix(dist(cbind(train_rndcv4k_mammal.df[[i]]$long, train_rndcv4k_mammal.df[[i]]$lat)))
+resid.dists.inv[[i]] <- 1/resid.dists[[i]]
+diag(resid.dists.inv[[i]]) <- 0
+}
+
+moran <- function(x, y){Moran.I(x$residual, y)}
+moran.train_rndcv4k_mammal <- map(train_rndcv4k_mammal.df, resid.dists.inv, moran)
+
+
+Moran.I(train_rndcv4k_mammal.df[[1]]$residual, resid.dists.inv)
+
+```
 
 
 ```{r semivariogram}
 library(gstat)
 
-vario_pred_cloud <- function(x){gstat::variogram(prediction~1, x, cloud = T)}
-vario_pred <- function(x){gstat::variogram(residual.1~1, x)}
+vario_pred <- function(x){gstat::variogram(prediction~1, x)}
+vario_resid <- function(x){gstat::variogram(residual~1, x)}
 
-sf_xy <- function(x){sf::st_as_sf(x, coords = c("X", "Y"), crs = 4326)}
-test_sf_mammal_cv4k <- map(test_xy_mammal, sf_xy)
-test_sf_reptile_cv4k <- map(test_xy_reptile, sf_xy)
-vario_mammal_cv4k <- map(test_sf_mammal_cv4k, vario_pred)
+sf_xy <- function(x){sf::st_as_sf(x, coords = c("long", "lat"), crs = 4326)}
+sf_train_rndcv4k_mammal <- map(train_rndcv4k_mammal.df, sf_xy)
+sf_test_rndcv4k_mammal <- map(test_rndcv4k_mammal.df, sf_xy)
 
-vario_mammal_cloud <- map(test_sf_mammal_cv4k, vario_pred_cloud)
+vario_rndcv4k_mammal <- future_map(sf_test_rndcv4k_mammal, vario_resid, 
+                                .options = furrr_options(seed = TRUE),
+                                .progress = T)
+
+
 
 ####
 plot_variogram <- function(v, m) {
@@ -50,7 +102,7 @@ m <- fit.variogram(v, vgm(c("Exp", "Sph")))
 plot_variogram(v, m) 
 ###
 
-vario.plot.4km.sph <- map2(vario_mammal_cv4k, vmcv4k.sph_mammal, plot_variogram)
+vario.plot.4km.sph <- map2(vario_rndcv4k_mammal, vmcv4k.sph_mammal, plot_variogram)
 vario.plot.4km.gau <- map2(vario_mammal_cv4k, vmcv4k.gau_mammal, plot_variogram)
 vario.plot.4km.exp <- map2(vario_mammal_cv4k, vmcv4k.exp_mammal, plot_variogram)
 vario.plot.4km.mat <- map2(vario_mammal_cv4k, vmcv4k.mat_mammal, plot_variogram)
@@ -100,7 +152,7 @@ vario_int <- function(x){fit.variogram(x, vgm("Int"))}
 
 
 
-vmcv4k.sph_mammal <- map(vario_mammal_cv4k, vario_sph)
+vmcv4k.sph_mammal <- map(vario_rndcv4k_mammal, vario_sph)
 vmcv4k.exp_mammal <- map(vario_mammal_cv4k, vario_exp)
 vmcv4k.gau_mammal <- map(vario_mammal_cv4k, vario_gau)
 vmcv4k.mat_mammal <- map(vario_mammal_cv4k, vario_mat)
@@ -165,18 +217,19 @@ library(ncf)
 ncf::correlog(test_xy_mammal[[1]][,1], test_xy_mammal[[1]][,2], test_xy_mammal[[1]][,3],
               resamp = 10, increment = 1000)
 ```
-
-classical moran's I with ape
 ```{r}
+dnn.sph.4kM.test.good <- vector("list", length = 19)
+dnn.sph.4kM.test.good <- dnn.sph.4kM.test[c(1,5,7,9,10,12,13,17,18,19,20,22,23,24,25,27,30,33,34)]
 
-library(ape)
-resid.dists <- as.matrix(dist(cbind(test_xy_mammal.test$X, test_xy_mammal.test$Y)))
-resid.dists.inv <- 1/resid.dists
-diag(resid.dists.inv) <- 0
 
-Moran.I(test_xy_mammal.test$residual.1, resid.dists.inv)
+
+
+sf_test_rndcv4k_mammal.good <- list()
+sf_test_rndcv4k_mammal.good <-  sf_test_rndcv4k_mammal[c(1,5,7,9,10,12,13,17,18,19,20,22,23,24,25,27,30,33,34)]
 
 ```
+
+
 
 
 ```{r}
@@ -199,79 +252,42 @@ library(spdep)
 
 dnn <- function(x, y){spdep::dnearneigh(x, 0, y)}
 
-dnn.sph.4kM <- list()
-for (i in 1:length(test_sf_mammal_cv4k)){
-  dnn.sph.4kM[[i]] <- spdep::dnearneigh(test_sf_mammal_cv4k[[i]], 0, range.vm.sph.4kM[i,]) 
-}
+dnn.sph.4kM.test <- furrr::future_map2(sf_test_rndcv4k_mammal, 
+                                       range.vm.sph.4kM, 
+                                       dnn,
+                                       .options = furrr_options(seed = TRUE),
+                                       .progress = T)
 
-
-# dnn이 너무 오래 걸려서 임의로 쪼개본다.
-test_sf_mammal_cv4k.test <- list()
-test_sf_mammal_cv4k.test[[1]] <- test_sf_mammal_cv4k[[1]]
-test_sf_mammal_cv4k.test[[2]] <- test_sf_mammal_cv4k[[2]]
-test_sf_mammal_cv4k.test[[3]] <- test_sf_mammal_cv4k[[5]]
-test_sf_mammal_cv4k.test[[4]] <- test_sf_mammal_cv4k[[7]]
-test_sf_mammal_cv4k.test[[5]] <- test_sf_mammal_cv4k[[9]]
-test_sf_mammal_cv4k.test[[6]] <- test_sf_mammal_cv4k[[11]]
-test_sf_mammal_cv4k.test[[7]] <- test_sf_mammal_cv4k[[12]]
-test_sf_mammal_cv4k.test[[8]] <- test_sf_mammal_cv4k[[14]]
-test_sf_mammal_cv4k.test[[9]] <- test_sf_mammal_cv4k[[18]]
-test_sf_mammal_cv4k.test[[10]] <- test_sf_mammal_cv4k[[19]]
-test_sf_mammal_cv4k.test[[11]] <- test_sf_mammal_cv4k[[20]]
-test_sf_mammal_cv4k.test[[12]] <- test_sf_mammal_cv4k[[21]]
-test_sf_mammal_cv4k.test[[13]] <- test_sf_mammal_cv4k[[22]]
-test_sf_mammal_cv4k.test[[14]] <- test_sf_mammal_cv4k[[23]]
-test_sf_mammal_cv4k.test[[15]] <- test_sf_mammal_cv4k[[24]]
-test_sf_mammal_cv4k.test[[16]] <- test_sf_mammal_cv4k[[25]]
-test_sf_mammal_cv4k.test[[17]] <- test_sf_mammal_cv4k[[26]]
-test_sf_mammal_cv4k.test[[18]] <- test_sf_mammal_cv4k[[29]]
-test_sf_mammal_cv4k.test[[19]] <- test_sf_mammal_cv4k[[30]]
-test_sf_mammal_cv4k.test[[20]] <- test_sf_mammal_cv4k[[32]]
-test_sf_mammal_cv4k.test[[21]] <- test_sf_mammal_cv4k[[34]]
-test_sf_mammal_cv4k.test[[22]] <- test_sf_mammal_cv4k[[36]]
-
-range.vm.sph.4kM.test <- list()
-range.vm.sph.4kM.test[[1]] <- range.vm.sph.4kM[[1]]
-range.vm.sph.4kM.test[[2]] <- range.vm.sph.4kM[[2]]
-range.vm.sph.4kM.test[[3]] <- range.vm.sph.4kM[[5]]
-range.vm.sph.4kM.test[[4]] <- range.vm.sph.4kM[[7]]
-range.vm.sph.4kM.test[[5]] <- range.vm.sph.4kM[[9]]
-range.vm.sph.4kM.test[[6]] <- range.vm.sph.4kM[[11]]
-range.vm.sph.4kM.test[[7]] <- range.vm.sph.4kM[[12]]
-range.vm.sph.4kM.test[[8]] <- range.vm.sph.4kM[[14]]
-range.vm.sph.4kM.test[[9]] <- range.vm.sph.4kM[[18]]
-range.vm.sph.4kM.test[[10]] <- range.vm.sph.4kM[[19]]
-range.vm.sph.4kM.test[[11]] <- range.vm.sph.4kM[[20]]
-range.vm.sph.4kM.test[[12]] <- range.vm.sph.4kM[[21]]
-range.vm.sph.4kM.test[[13]] <- range.vm.sph.4kM[[22]]
-range.vm.sph.4kM.test[[14]] <- range.vm.sph.4kM[[23]]
-range.vm.sph.4kM.test[[15]] <- range.vm.sph.4kM[[24]]
-range.vm.sph.4kM.test[[16]] <- range.vm.sph.4kM[[25]]
-range.vm.sph.4kM.test[[17]] <- range.vm.sph.4kM[[26]]
-range.vm.sph.4kM.test[[18]] <- range.vm.sph.4kM[[29]]
-range.vm.sph.4kM.test[[19]] <- range.vm.sph.4kM[[30]]
-range.vm.sph.4kM.test[[20]] <- range.vm.sph.4kM[[32]]
-range.vm.sph.4kM.test[[21]] <- range.vm.sph.4kM[[34]]
-range.vm.sph.4kM.test[[22]] <- range.vm.sph.4kM[[36]]
-
-
-
-
-
-
-
-
-
-
-
-dnn.sph.4kM.test <- furrr::future_map2(test_sf_mammal_cv4k.test, range.vm.sph.4kM.test, dnn)
-
-
-dnb_mammal <- map2(sf_resid_fold5_mammal, vari_mammal_range$range, dnn)
 
 nb2listw_zero <- function(x){nb2listw(x, zero.policy = T)}
 
-listw_dnb_mammal <- map(dnb_mammal, nb2listw_zero)
+dnn.sph.4km.test.good.h<- list()
+for(i in 1:12){
+  dnn.sph.4km.test.good.h[[i]] <- dnn.sph.4km.test.good[[i]]
+} 
+
+
+
+
+listw_dnb.good_mammal.h <- furrr::future_map(dnn.sph.4km.test.good.h, 
+                                           nb2listw_zero, 
+                                           .options = furrr_options(seed = TRUE),
+                                           .progress = T)
+
+
+my.moran.test <- function(x,y){spdep::moran.test(x$residual, listw = y, zero.policy = T)}
+
+
+
+moran_rndsph_mammal   <- future_map2(sf_test_rndcv4k_mammal.good, 
+                         listw_dnb.good_mammal, 
+                         my.moran.test, 
+                         .options = furrr_options(seed = TRUE),
+                         .progress = T)
+
+result_mammal <- tibble(rsac_rndcv4k2 = map_dbl(moran_rndsph_mammal, c(1,1)))
+
+
 
 #set true for fucking stupid error and its old style function
 set.ZeroPolicyOption(TRUE)
@@ -279,102 +295,6 @@ set.ZeroPolicyOption(TRUE)
 
 
 
-knb1 <- function(x){nb2listw(knn2nb(knearneigh(x, k=1)))}
-knb2 <- function(x){nb2listw(knn2nb(knearneigh(x, k=2)))}
-knb3 <- function(x){nb2listw(knn2nb(knearneigh(x, k=3)))}
-knb4 <- function(x){nb2listw(knn2nb(knearneigh(x, k=4)))}
-knb5 <- function(x){nb2listw(knn2nb(knearneigh(x, k=5)))}
-knb6 <- function(x){nb2listw(knn2nb(knearneigh(x, k=6)))}
-knb7 <- function(x){nb2listw(knn2nb(knearneigh(x, k=7)))}
-knb8 <- function(x){nb2listw(knn2nb(knearneigh(x, k=8)))}
-knb9 <- function(x){nb2listw(knn2nb(knearneigh(x, k=9)))}
-knb10 <- function(x){nb2listw(knn2nb(knearneigh(x, k=10)))}
-
-
-knb1_mammal <- map(sf_pred_fold5_mammal, knb1)
-knb2_mammal <- map(sf_pred_fold5_mammal, knb2)
-knb3_mammal <- map(sf_pred_fold5_mammal, knb3)
-knb4_mammal <- map(sf_pred_fold5_mammal, knb4)
-knb5_mammal <- map(sf_pred_fold5_mammal, knb5)
-knb6_mammal <- map(sf_pred_fold5_mammal, knb6)
-knb7_mammal <- map(sf_pred_fold5_mammal, knb7)
-knb8_mammal <- map(sf_pred_fold5_mammal, knb8)
-knb9_mammal <- map(sf_pred_fold5_mammal, knb9)
-knb10_mammal <- map(sf_pred_fold5_mammal, knb10)
-
-
-moran_mammal_1k1 <- map2(map(sf_resid_fold5_mammal, 4), knb1_mammal, moran.test)
-moran_mammal_1k2 <- map2(map(sf_resid_fold5_mammal, 4), knb2_mammal, moran.test)
-moran_mammal_1k3 <- map2(map(sf_resid_fold5_mammal, 4), knb3_mammal, moran.test)
-moran_mammal_1k4 <- map2(map(sf_resid_fold5_mammal, 4), knb4_mammal, moran.test)
-moran_mammal_1k5 <- map2(map(sf_resid_fold5_mammal, 4), knb5_mammal, moran.test)
-moran_mammal_1k6 <- map2(map(sf_resid_fold5_mammal, 4), knb6_mammal, moran.test)
-moran_mammal_1k7 <- map2(map(sf_resid_fold5_mammal, 4), knb7_mammal, moran.test)
-moran_mammal_1k8 <- map2(map(sf_resid_fold5_mammal, 4), knb8_mammal, moran.test)
-moran_mammal_1k9 <- map2(map(sf_resid_fold5_mammal, 4), knb9_mammal, moran.test)
-moran_mammal_1k10 <- map2(map(sf_resid_fold5_mammal, 4), knb10_mammal, moran.test)
-
-moran_mammal_0.9k1 <- map2(map(sf_resid_fold5_mammal, 5), knb1_mammal, moran.test)
-moran_mammal_0.9k2 <- map2(map(sf_resid_fold5_mammal, 5), knb2_mammal, moran.test)
-moran_mammal_0.9k3 <- map2(map(sf_resid_fold5_mammal, 5), knb3_mammal, moran.test)
-moran_mammal_0.9k4 <- map2(map(sf_resid_fold5_mammal, 5), knb4_mammal, moran.test)
-moran_mammal_0.9k5 <- map2(map(sf_resid_fold5_mammal, 5), knb5_mammal, moran.test)
-moran_mammal_0.9k6 <- map2(map(sf_resid_fold5_mammal, 5), knb6_mammal, moran.test)
-moran_mammal_0.9k7 <- map2(map(sf_resid_fold5_mammal, 5), knb7_mammal, moran.test)
-moran_mammal_0.9k8 <- map2(map(sf_resid_fold5_mammal, 5), knb8_mammal, moran.test)
-moran_mammal_0.9k9 <- map2(map(sf_resid_fold5_mammal, 5), knb9_mammal, moran.test)
-moran_mammal_0.9k10 <- map2(map(sf_resid_fold5_mammal, 5), knb10_mammal, moran.test)
-
-moran_mammal_0.8k1 <- map2(map(sf_resid_fold5_mammal, 6), knb1_mammal, moran.test)
-moran_mammal_0.8k2 <- map2(map(sf_resid_fold5_mammal, 6), knb2_mammal, moran.test)
-moran_mammal_0.8k3 <- map2(map(sf_resid_fold5_mammal, 6), knb3_mammal, moran.test)
-moran_mammal_0.8k4 <- map2(map(sf_resid_fold5_mammal, 6), knb4_mammal, moran.test)
-moran_mammal_0.8k5 <- map2(map(sf_resid_fold5_mammal, 6), knb5_mammal, moran.test)
-moran_mammal_0.8k6 <- map2(map(sf_resid_fold5_mammal, 6), knb6_mammal, moran.test)
-moran_mammal_0.8k7 <- map2(map(sf_resid_fold5_mammal, 6), knb7_mammal, moran.test)
-moran_mammal_0.8k8 <- map2(map(sf_resid_fold5_mammal, 6), knb8_mammal, moran.test)
-moran_mammal_0.8k9 <- map2(map(sf_resid_fold5_mammal, 6), knb9_mammal, moran.test)
-moran_mammal_0.8k10 <- map2(map(sf_resid_fold5_mammal, 6), knb10_mammal, moran.test)
-
-moran_mammal_0.7k1 <- map2(map(sf_resid_fold5_mammal, 7), knb1_mammal, moran.test)
-moran_mammal_0.7k2 <- map2(map(sf_resid_fold5_mammal, 7), knb2_mammal, moran.test)
-moran_mammal_0.7k3 <- map2(map(sf_resid_fold5_mammal, 7), knb3_mammal, moran.test)
-moran_mammal_0.7k4 <- map2(map(sf_resid_fold5_mammal, 7), knb4_mammal, moran.test)
-moran_mammal_0.7k5 <- map2(map(sf_resid_fold5_mammal, 7), knb5_mammal, moran.test)
-moran_mammal_0.7k6 <- map2(map(sf_resid_fold5_mammal, 7), knb6_mammal, moran.test)
-moran_mammal_0.7k7 <- map2(map(sf_resid_fold5_mammal, 7), knb7_mammal, moran.test)
-moran_mammal_0.7k8 <- map2(map(sf_resid_fold5_mammal, 7), knb8_mammal, moran.test)
-moran_mammal_0.7k9 <- map2(map(sf_resid_fold5_mammal, 7), knb9_mammal, moran.test)
-moran_mammal_0.7k10 <- map2(map(sf_resid_fold5_mammal, 7), knb10_mammal, moran.test)
-
-moran_mammal_0.6k1 <- map2(map(sf_resid_fold5_mammal, 8), knb1_mammal, moran.test)
-moran_mammal_0.6k2 <- map2(map(sf_resid_fold5_mammal, 8), knb2_mammal, moran.test)
-moran_mammal_0.6k3 <- map2(map(sf_resid_fold5_mammal, 8), knb3_mammal, moran.test)
-moran_mammal_0.6k4 <- map2(map(sf_resid_fold5_mammal, 8), knb4_mammal, moran.test)
-moran_mammal_0.6k5 <- map2(map(sf_resid_fold5_mammal, 8), knb5_mammal, moran.test)
-moran_mammal_0.6k6 <- map2(map(sf_resid_fold5_mammal, 8), knb6_mammal, moran.test)
-moran_mammal_0.6k7 <- map2(map(sf_resid_fold5_mammal, 8), knb7_mammal, moran.test)
-moran_mammal_0.6k8 <- map2(map(sf_resid_fold5_mammal, 8), knb8_mammal, moran.test)
-moran_mammal_0.6k9 <- map2(map(sf_resid_fold5_mammal, 8), knb9_mammal, moran.test)
-moran_mammal_0.6k10 <- map2(map(sf_resid_fold5_mammal, 8), knb10_mammal, moran.test)
-
-moran_mammal_0.5k1 <- map2(map(sf_resid_fold5_mammal, 9), knb1_mammal, moran.test)
-moran_mammal_0.5k2 <- map2(map(sf_resid_fold5_mammal, 9), knb2_mammal, moran.test)
-moran_mammal_0.5k3 <- map2(map(sf_resid_fold5_mammal, 9), knb3_mammal, moran.test)
-moran_mammal_0.5k4 <- map2(map(sf_resid_fold5_mammal, 9), knb4_mammal, moran.test)
-moran_mammal_0.5k5 <- map2(map(sf_resid_fold5_mammal, 9), knb5_mammal, moran.test)
-moran_mammal_0.5k6 <- map2(map(sf_resid_fold5_mammal, 9), knb6_mammal, moran.test)
-moran_mammal_0.5k7 <- map2(map(sf_resid_fold5_mammal, 9), knb7_mammal, moran.test)
-moran_mammal_0.5k8 <- map2(map(sf_resid_fold5_mammal, 9), knb8_mammal, moran.test)
-moran_mammal_0.5k9 <- map2(map(sf_resid_fold5_mammal, 9), knb9_mammal, moran.test)
-moran_mammal_0.5k10 <- map2(map(sf_resid_fold5_mammal, 9), knb10_mammal, moran.test)
-
-moran_mammal_1dnb <- map2(map(sf_resid_fold5_mammal, 4), listw_dnb_mammal, moran.test)
-moran_mammal_0.9dnb <- map2(map(sf_resid_fold5_mammal, 5), listw_dnb_mammal, moran.test)
-moran_mammal_0.8dnb <- map2(map(sf_resid_fold5_mammal, 6), listw_dnb_mammal, moran.test)
-moran_mammal_0.7dnb <- map2(map(sf_resid_fold5_mammal, 7), listw_dnb_mammal, moran.test)
-moran_mammal_0.6dnb <- map2(map(sf_resid_fold5_mammal, 8), listw_dnb_mammal, moran.test)
-moran_mammal_0.5dnb <- map2(map(sf_resid_fold5_mammal, 9), listw_dnb_mammal, moran.test)
 ```
 
 
