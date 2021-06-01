@@ -38,11 +38,12 @@ future:::ClusterRegistry("stop")
 
 
 ```{r}
-data.mammal <- readr::read_rds(file = "data/data.mammal.rds")
-data.reptile <- readr::read_rds(file = "data/data.reptile.rds")
-data.amphibian <- readr::read_rds(file = "data/data.amphibian.rds")
+data.mammal <- readr::read_rds("data/data.mammal.rds")
+data.reptile <- readr::read_rds("data/data.reptile.rds")
+data.amphibian <- readr::read_rds("data/data.amphibian.rds")
 
 ```
+
 
 ```{r}
 reaarange <- function(x){dplyr::select(x@data, c(1,12,13,14,15,16,17,18,19,2,3,4,5,6,7,8,9,10,11))}
@@ -84,6 +85,92 @@ names(data.amphibian[[i]]@data) <- c("wc2.1_30s_bio_01", "wc2.1_30s_bio_02", "wc
 }
 ```
 
+
+```{r}
+bg10kshp_mammal <- paste0("C:/Users/lophital/Documents/rsac_x_overfit/shp/sf_mammal/bg10k_mammal/",
+                          list.files(path = "C:/Users/lophital/Documents/rsac_x_overfit/shp/sf_mammal/bg10k_mammal",
+              pattern = "*.shp"))
+
+bg10k_mammal <- list()
+for(i in 1:length(data.mammal)){
+bg10k_mammal[[i]] <-  sf::read_sf(bg10kshp_mammal[i])
+}
+
+bg10kcoord_mammal <- map(bg10k_mammal, st_coordinates)
+bg10kcoord_mammal <- map(bg10kcoord_mammal, as.data.frame)
+```
+
+
+load new background
+```{r}
+bg10k_mammal.bio <- readr::read_rds("bg10k_mammal.bio.rds")
+bg10k_mammal.bio <- map(bg10k_mammal.bio, as.data.frame)
+for(i in 1:length(bg10k_mammal.bio)){
+  mutate(bg10k_mammal.bio[[i]],
+         X = bg10kcoord_mammal[[i]]$X,
+         Y = bg10kcoord_mammal[[i]]$Y) -> bg10k_mammal.bio[[i]]
+}
+bg10k_mammal.bio <- map(bg10k_mammal.bio, na.omit)
+```
+
+
+
+
+
+```{r}
+my.pseperate <- function(x){dplyr::bind_cols(dplyr::slice(x@coords, 1:which(x@pa==0)[1]-1),
+                                             dplyr::slice(x@data, 1:which(x@pa==0)[1]-1))}
+
+
+p.data.mammal <- map(data.mammal, my.pseperate)
+
+bg10kdata_mammal <- list()
+for(i in 1:length(p.data.mammal)){
+  bg10kdata_mammal[[i]] <- as.data.frame(
+   rbind(p.data.mammal[[i]][,3:21], bg10k_mammal.bio[[i]][,1:19]))}
+
+newcoord_mammal <- list()
+for(i in 1:length(p.data.mammal)){
+  newcoord_mammal[[i]] <-
+   rbind(p.data.mammal[[i]][,1:2], bg10k_mammal.bio[[i]][,20:21])}
+
+newpa_mammal <- list()
+for(i in 1:length(p.data.mammal)){
+newpa_mammal[[i]] <- c(rep(1, nrow(p.data.mammal[[i]])), 
+                       rep(0, nrow(bg10k_mammal.bio[[i]])))}
+
+
+for(i in 1:length(data.mammal)){
+data.mammal[[i]]@data <- bg10kdata_mammal[[i]]
+data.mammal[[i]]@coords <- newcoord_mammal[[i]]
+data.mammal[[i]]@pa <- newpa_mammal[[i]]
+}
+
+
+```
+
+
+```{r}
+bg10k_mammal.xy <- list()
+for(i in 1:length(bg10k_mammal.bio)){
+bg10k_mammal.xy[[i]] <- bg10k_mammal.bio[[i]][,20:21]}
+
+my.swdmaker <- function(x,y,z){SDMtune::prepareSWD(
+  species = x@species, 
+  p = y[,1:2], 
+  a = z[,1:2], 
+  env = stackbio)}
+
+data.mammal <- furrr::future_map2(data.mammal, p.data.mammal, bg10k_mammal.xy,
+                                  my.swdmaker, 
+                                  .options = furrr_options(seed = TRUE), .progress = T)
+
+
+```
+
+
+
+
 데이터를 어떻게 쪼개느냐에 따라 모델 성능이 갈릴 것이다.
 random k fold는 가진 모든 출현 데이터를 k개의 가짓수로 train과 test 셋으로 나눈다.
 1000개에 5 fold 라면, 200개는 test셋이고 800개는 train 셋인데 
@@ -121,7 +208,11 @@ library(SDMtune)
 
 # 20 % for test
 t.t.mammal_0.2 <- list()
-for (i in 1:length(data.mammal)){t.t.mammal_0.2[[i]] <- trainValTest(data.mammal[[i]], test = 0.2, only_presence = TRUE, seed = 1)}
+for (i in 1:length(data.mammal)){
+  t.t.mammal_0.2[[i]] <- trainValTest(data.mammal[[i]], 
+                                      test = 0.2, 
+                                      only_presence = TRUE, 
+                                      seed = 1)}
 
 t.t.reptile_0.2 <- list()
 for (i in 1:length(data.reptile)){t.t.reptile_0.2[[i]] <- trainValTest(data.reptile[[i]], test = 0.2, only_presence = TRUE, seed = 1)}
@@ -178,12 +269,60 @@ for (i in 1:length(rnd4k_mammal)){model_rndcv4k_mammal[[i]] <- train("Maxnet", d
 maxnet.train <- function(x, y){SDMtune::train("Maxnet",
                                                data = x[[1]],
                                                folds = y)}
+maxnet::maxnet()
+t.t.mammal_0.2[-4] -> test
+folds.rnd4k_mammal[-4] -> test.fold
+
 
 model_rndcv4k_mammal <- future_map2(t.t.mammal_0.2, 
                                     folds.rnd4k_mammal, 
                                     maxnet.train, 
                                     .options = furrr_options(seed = TRUE),
                                     .progress = T)
+
+model_rndcv4k_mammal <- list()
+for(i in 1:length(t.t.mammal_0.2)){
+  model_rndcv4k_mammal[[i]] <- maxnet.train(t.t.mammal_0.2[[i]], folds.rnd4k_mammal[[i]])
+}
+
+model_rndcv4k_mammal2 <- list()
+foreach (i = 1:length(t.t.mammal_0.2), .packages='SDMtune') %dopar% {
+  model_rndcv4k_mammal2[[i]] <- maxnet.train(t.t.mammal_0.2[[i]], folds.rnd4k_mammal[[i]])
+  }
+
+test_t.t <- t.t.mammal_0.2[[1]]
+test_fold <- folds.rnd4k_mammal[[1]]
+test_t.t[[1]]@data <- test_t.t[[1]]@data[,1:3]
+test_t.t[[2]]@data <- test_t.t[[2]]@data[,1:3]
+
+test_t.t2 <- t.t.mammal_0.2[[1]]
+test_fold2 <- folds.rnd4k_mammal[[1]]
+test_t.t2[[1]]@data <- test_t.t2[[1]]@data[,1:4]
+test_t.t2[[2]]@data <- test_t.t2[[2]]@data[,1:4]
+
+test_t.t3 <- t.t.mammal_0.2[[1]]
+test_fold3 <- folds.rnd4k_mammal[[1]]
+test_t.t3[[1]]@data <- test_t.t3[[1]]@data[,c(1,2,3,5)]
+test_t.t3[[2]]@data <- test_t.t3[[2]]@data[,c(1,2,3,5)]
+
+ent1 <- vector()
+for(i in 1:4){
+   ent1[i] <- test_model@models[[i]]@model@model$entropy
+}
+
+ent2 <- vector()
+for(i in 1:4){
+   ent2[i] <- test_model2@models[[i]]@model@model$entropy
+}
+
+ent3 <- vector()
+for(i in 1:4){
+   ent3[i] <- test_model3@models[[i]]@model@model$entropy
+}
+
+test_model <- maxnet.train(test_t.t, test_fold)
+test_model2 <- maxnet.train(test_t.t2, test_fold2)
+test_model3 <- maxnet.train(test_t.t3, test_fold3)
 
 model_rndcv5k_mammal <- future_map2(t.t.mammal_0.2,
                                     rnd5k_mammal, 

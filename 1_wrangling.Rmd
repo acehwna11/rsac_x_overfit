@@ -690,8 +690,557 @@ save(stackbio, file = "E:/sdmtune/rdata/stackbio.rdata")
 save(t.t.mammal_0.2, file = "E:/sdmtune/rdata/t.t.mammal_0.2.rdata")
 ```
 
-fucking duplicated points
+
 ```{r}
+library(sf)
+library(readr)
+library(dplyr)
+library(purrr)
+
+data.mammal <- read_rds("data/data.mammal.rds")
+data.reptile <- read_rds("data/data.reptile.rds")
+data.amphibian <- read_rds("data/data.amphibian.rds")
+
+name.mammal <- vector()
+for(i in 1:length(data.mammal)){
+ name.mammal[i] <- data.mammal[[i]]@species
+}
+name.reptile <- vector()
+for(i in 1:length(data.reptile)){
+ name.reptile[i] <- data.reptile[[i]]@species
+}
+name.amphibian <- vector()
+for(i in 1:length(data.amphibian)){
+ name.amphibian[i] <- data.amphibian[[i]]@species
+}
+
+
+
+ANURA <- sf::st_read(dsn = "IUCN_range/ANURA.shp")
+CAUDATA <- sf::st_read(dsn = "IUCN_range/CAUDATA.shp")
+CHAMELEONS <- sf::st_read(dsn = "IUCN_range/CHAMELEONS.shp")
+CROCODILES_ALLIGATORS <- sf::st_read(dsn = "IUCN_range/CROCODILES_ALLIGATORS.shp")
+GYMNOPHIONA <- sf::st_read(dsn = "IUCN_range/GYMNOPHIONA.shp")
+MAMMALS_TERRESTRIAL <- sf::st_read(dsn = "IUCN_range/MAMMALS_TERRESTRIAL_ONLY.shp")
+REPTILES <- sf::st_read(dsn = "IUCN_range/REPTILES.shp")
+
+
+range.ANURA <- list()
+for(i in 1:length(name.amphibian)){
+range.ANURA[[i]] <- ANURA %>% dplyr::filter(binomial == name.amphibian[i])
+}
+
+range.CAUDATA <- list()
+for(i in 1:length(name.amphibian)){
+range.CAUDATA[[i]] <- CAUDATA %>% dplyr::filter(binomial == name.amphibian[i])
+}
+
+range.CHAMELONES <- list()
+for(i in 1:length(name.reptile)){
+range.CHAMELONES[[i]] <- CHAMELEONS %>% dplyr::filter(binomial == name.reptile[i])
+}
+
+range.CROCODILES_ALLIGATORS <- list()
+for(i in 1:length(name.reptile)){
+range.CROCODILES_ALLIGATORS[[i]] <- CROCODILES_ALLIGATORS %>% dplyr::filter(binomial == name.reptile[i])
+}
+
+range.GYMNOPHIONA <- list()
+for(i in 1:length(name.amphibian)){
+range.GYMNOPHIONA[[i]] <- GYMNOPHIONA %>% dplyr::filter(binomial == name.amphibian[i])
+}
+
+range.MAMMALS_TERRESTRIAL <- list()
+for(i in 1:length(name.mammal)){
+range.MAMMALS_TERRESTRIAL[[i]] <- MAMMALS_TERRESTRIAL %>% dplyr::filter(binomial == name.mammal[i])
+}
+
+range.REPTILES <- list()
+for(i in 1:length(name.reptile)){
+range.REPTILES[[i]] <- REPTILES %>% dplyr::filter(binomial == name.reptile[i])
+}
+
+map_int(range.ANURA, nrow)
+map_int(range.CAUDATA, nrow)
+map_int(range.GYMNOPHIONA, nrow)
+
+map_int(range.CHAMELONES, nrow)
+map_int(range.CROCODILES_ALLIGATORS, nrow)
+map_int(range.REPTILES, nrow)
+
+map_int(range.MAMMALS_TERRESTRIAL, nrow)
+
+range.amphibian.check <- data.frame(ANURA = map_int(range.ANURA, nrow),
+                              CAUDATA = map_int(range.CAUDATA, nrow),
+                              GYMNOPHIONA = map_int(range.GYMNOPHIONA, nrow))
+
+range.reptile.check <- data.frame(CHAMELONES = map_int(range.CHAMELONES, nrow),
+                              CROCODILES_ALLIGATORS = map_int(range.CROCODILES_ALLIGATORS, nrow),
+                              REPTILES = map_int(range.REPTILES, nrow))
+r#all overlap. same thing. 
+range.reptile <- range.REPTILES
+
+#match. append
+range.amphibian <- range.ANURA
+
+for(i in which(range.amphibian.check$ANURA == 0)){
+  range.amphibian[[i]] <- range.CAUDATA[[i]]
+}
+
+map_dbl(range.amphibian, nrow)
+
+#ONLY 43. species dont have range
+
+for(i in 1:length(data.mammal)){
+sf::write_sf(range.MAMMALS_TERRESTRIAL[[i]], paste0("shp/range/range_",name.mammal[i],".shp"))
+}
+
+for(i in 1:length(data.reptile)){
+sf::write_sf(range.reptile[[i]], paste0("shp/range_reptile/range_",name.reptile[i],".shp"))
+}
+
+for(i in 1:length(data.amphibian)){
+sf::write_sf(range.amphibian[[i]], paste0("shp/range_amphibian/range_",name.amphibian[i],".shp"))
+}
 
 ```
+
+```{r}
+which(map_dbl(range.MAMMALS_TERRESTRIAL, nrow) == 0) # 20
+
+which(map_dbl(range.reptile, nrow) == 0) #  3  5  7 11 13 15 17 30 32 35 48 52 55 56 68 75 79 87 92
+which(map_dbl(range.amphibian, nrow) == 0) # 43
+```
+
+```{r combine features}
+
+range.mammal <- list()
+for(i in 1:length(range.MAMMALS_TERRESTRIAL)){
+  range.mammal[[i]] <- st_combine(range.MAMMALS_TERRESTRIAL[[i]])
+}
+
+for(i in 1:length(range.reptile)){
+  range.reptile[[i]] <- st_combine(range.reptile[[i]])
+}
+
+for(i in 1:length(range.amphibian)){
+  range.amphibian[[i]] <- st_combine(range.amphibian[[i]])
+}
+
+
+
+```
+write range polygon that is combined, at range.mix_taxa
+```{r}
+for(i in 1:length(data.mammal)){
+sf::write_sf(range.mammal[[i]], paste0("shp/range.mix_mammal/range_",name.mammal[i],".shp"))
+}
+
+for(i in 1:length(data.reptile)){
+sf::write_sf(range.reptile[[i]], paste0("shp/range_reptile/range_",name.reptile[i],".shp"))
+}
+
+for(i in 1:length(data.amphibian)){
+sf::write_sf(range.amphibian[[i]], paste0("shp/range_amphibian/range_",name.amphibian[i],".shp"))
+}
+
+```
+
+
+```{r}
+my.bg10k <- function(x){st_sample(x, size = 10000, 
+                                  type = "random", 
+                                  exact = T, 
+                                  by_polygon = F 
+                                  )}
+
+my.bg30k <- function(x){st_sample(x, size = 30000, 
+                                  type = "random", 
+                                  exact = T, 
+                                  by_polygon = F 
+                                  )}
+
+my.bg100k <- function(x){st_sample(x, size = 1000000, 
+                                  type = "random", 
+                                  exact = T, 
+                                  by_polygon = F 
+                                  )}
+
+
+
+bg10k_mammal <- list()
+for(i in 21:length(range.mammal)){
+  bg10k_mammal[[i]] <- my.bg10k(range.mammal[[i]])}
+
+#14 mustela got error so done in QGIS
+#35 vulpes got error so done in QGIS
+#20 dont have IUCN range
+#Import 14 QGIS bg10k
+
+bg10k_mammal[[14]] <- sf::st_read("shp/sf_mammal/bg10k_mammal/m14_mustela.shp")
+bg10k_mammal[[35]] <- sf::st_read("shp/sf_mammal/bg10k_mammal/m35_vulpes.shp")
+bg10k_mammal[[20]] <- sf::st_read("shp/sf_mammal/bg10k_mammal/m20_Ornithorhynchus.shp")
+
+#convert to sf to extract from raster
+for(i in 21:35){
+  bg10k_mammal[[i]] <- sf::st_sf(bg10k_mammal[[i]])
+}
+
+```
+
+20 have no IUCN list, using MCP
+```{r}
+library(adehabitatHR)
+
+my.pseperate <- function(x){dplyr::bind_cols(dplyr::slice(x@coords, 1:which(x@pa==0)[1]-1),
+                                             dplyr::slice(x@data, 1:which(x@pa==0)[1]-1))}
+
+p.data.mammal <- map(data.mammal, my.pseperate)
+p.data.reptile <- map(data.reptile, my.pseperate)
+
+sf_df <- function(x){sf::st_as_sf(x, 
+                                  coords = c("X", "Y"), 
+                                  crs = 4326,
+                                  remove = F)
+}
+
+sf_p_mammal <- map(p.data.mammal, sf_df)
+sp_p_mammal <- map(sf_p_mammal, as_Spatial)
+
+sf_p_reptile <- map(p.data.reptile, sf_df)
+sp_p_reptile <- map(sf_p_reptile, as_Spatial)
+
+mcp_20 <- mcp(sp_p_mammal[[20]])
+sf_mcp_20 <- sf::st_as_sf(mcp_20)
+range.mammal[[20]] <- sf_mcp_20
+bg10k_mammal[[20]] <- my.bg10k(range.mammal[[20]])
+bg10k_mammal[[20]] <- sf::st_sf(bg10k_mammal[[20]])
+
+rgdal::writeOGR(mcp_20, "mcp_20.13k.shp", driver = "ESRI Shapefile", layer = "mcp_20.13k")
+
+
+sp_bg10k_mammal <- map(bg10k_mammal, as_Spatial)
+```
+
+
+
+```{r}
+my.extract <- function(x){raster::extract(bio1, x)}
+
+bg10k_mammal.bio <- future_map(sp_bg10k_mammal, my.extract)
+
+
+```
+
+```{r}
+my.nacheck <- function(x){sum(is.na(x[,1]))}
+
+map_dbl(bg10k_mammal.bio, my.nacheck)
+
+```
+```{r}
+for (i in 1:length(bg10k_mammal)){
+sf::write_sf(bg10k_mammal[[i]], paste0("shp/sf_mammal/bg10k_mammal/",data.mammal[[i]]@species,".shp"))
+}
+```
+
+
+reptile no range in 3  5  7 11 13 15 17 30 32 35 48 52 55 56 68 75 79 87 92
+make range for them with MCP
+```{r}
+for(i in c(3, 5, 7, 11, 13, 15, 17, 30, 32, 35, 48, 52, 55, 56, 68, 75, 79, 87, 92)){
+  range.reptile[[i]] <- sf::st_as_sfc(mcp(sp_p_reptile[[i]]))
+}
+
+```
+
+
+```{r}
+bg10k_reptile <- list()
+for(i in 37:length(range.reptile)){
+  bg10k_reptile[[i]] <- my.bg10k(range.reptile[[i]])}
+
+#12 is SEA TURTLE
+#36 got error so done in QGIS
+bg10k_reptile[[36]] <- sf::st_read("shp/sf_reptile/bg10k_reptile/bg10k_hemidactylus frenatus.shp")
+
+#conver sf to extract
+for(i in 13:94){
+  bg10k_reptile[[i]] <- sf::st_sf(bg10k_reptile[[i]])
+}
+
+# - 12
+bg10k_reptile[[12]] <- NULL
+
+sp_bg10k_reptile <- map(bg10k_reptile, as_Spatial)
+
+bg10k_reptile.bio <- future_map(sp_bg10k_reptile, my.extract)
+```
+
+
+```{r}
+map_dbl(bg10k_reptile.bio, my.nacheck)
+```
+
+```{r}
+
+cropbio.path_mammal <- list.files(path = "D:/bio_crop/mammal")
+cropbio_mammal <- list()
+for(i in 1:length(cropbio.path_mammal)){
+cropbio_mammal[[i]] <- raster::stack(paste0("D:/bio_crop/mammal/",cropbio.path_mammal[i]))}
+
+cropbiodf.path <- vector()
+for(i in 1:35){
+cropbiodf.path[i] <- paste0("D:/bio_crop/mammal/",data.mammal[[i]]@species,".csv")
+}
+
+for(i in 1:length(cropbio_mammal)){
+write_csv(raster::as.data.frame(cropbio_mammal[[i]]), cropbiodf.path[i])  
+}
+```
+
+```{r}
+bg10k_mammal.bio <- readr::read_rds("bg10k_mammal.bio.rds")
+biocolnames <- c("wc2.1_30s_bio_01",
+              "wc2.1_30s_bio_02",
+              "wc2.1_30s_bio_03",
+              "wc2.1_30s_bio_04",
+              "wc2.1_30s_bio_05",
+              "wc2.1_30s_bio_06",
+              "wc2.1_30s_bio_07",
+              "wc2.1_30s_bio_08",
+              "wc2.1_30s_bio_09",
+              "wc2.1_30s_bio_10",
+              "wc2.1_30s_bio_11",
+              "wc2.1_30s_bio_12",
+              "wc2.1_30s_bio_13",
+              "wc2.1_30s_bio_14",
+              "wc2.1_30s_bio_15",
+              "wc2.1_30s_bio_16",
+              "wc2.1_30s_bio_17",
+              "wc2.1_30s_bio_18",
+              "wc2.1_30s_bio_19")
+
+b.data.mammal <- list()
+for(i in 1:length(bg10k_mammal.bio)){
+  b.data.mammal[[i]] <- data.frame(wc2.1_30s_bio_01 = bg10k_mammal.bio[[i]][,1],
+                                   wc2.1_30s_bio_02 = bg10k_mammal.bio[[i]][,2],
+                                   wc2.1_30s_bio_03 = bg10k_mammal.bio[[i]][,3],
+                                   wc2.1_30s_bio_04 = bg10k_mammal.bio[[i]][,4],
+                                   wc2.1_30s_bio_05 = bg10k_mammal.bio[[i]][,5],
+                                   wc2.1_30s_bio_06 = bg10k_mammal.bio[[i]][,6],
+                                   wc2.1_30s_bio_07 = bg10k_mammal.bio[[i]][,7],
+                                   wc2.1_30s_bio_08 = bg10k_mammal.bio[[i]][,8],
+                                   wc2.1_30s_bio_09 = bg10k_mammal.bio[[i]][,9],
+                                   wc2.1_30s_bio_10 = bg10k_mammal.bio[[i]][,10],
+                                   wc2.1_30s_bio_11 = bg10k_mammal.bio[[i]][,11],
+                                   wc2.1_30s_bio_12 = bg10k_mammal.bio[[i]][,12],
+                                   wc2.1_30s_bio_13 = bg10k_mammal.bio[[i]][,13],
+                                   wc2.1_30s_bio_14 = bg10k_mammal.bio[[i]][,14],
+                                   wc2.1_30s_bio_15 = bg10k_mammal.bio[[i]][,15],
+                                   wc2.1_30s_bio_16 = bg10k_mammal.bio[[i]][,16],
+                                   wc2.1_30s_bio_17 = bg10k_mammal.bio[[i]][,17],
+                                   wc2.1_30s_bio_18 = bg10k_mammal.bio[[i]][,18],
+                                   wc2.1_30s_bio_19 = bg10k_mammal.bio[[i]][,19],
+                                   species = data.mammal[[i]]@species,
+                                   type = "background")}
+for(i in 1:35){
+b.data.mammal[[i]]  <- tidyr::pivot_longer(b.data.mammal[[i]], 
+                                            cols = 1:19, 
+                                            names_to = "bio", 
+                                            values_to = "covari")}
+
+  readr::read_csv(cropbiodf.path[35], 
+                  col_names = biocolnames,
+                  skip = 1,
+                  col_types = cols(wc2.1_30s_bio_01  = "d",
+                                   wc2.1_30s_bio_02  = "d",
+                                   wc2.1_30s_bio_03  = "d",
+                                   wc2.1_30s_bio_04  = "d",
+                                   wc2.1_30s_bio_05  = "d",
+                                   wc2.1_30s_bio_06  = "d",
+                                   wc2.1_30s_bio_07  = "d",
+                                   wc2.1_30s_bio_08  = "d",
+                                   wc2.1_30s_bio_09  = "d",
+                                   wc2.1_30s_bio_10  = "d",
+                                   wc2.1_30s_bio_11  = "d",
+                                   wc2.1_30s_bio_12  = "d",
+                                   wc2.1_30s_bio_13  = "d",
+                                   wc2.1_30s_bio_14  = "d",
+                                   wc2.1_30s_bio_15  = "d",
+                                   wc2.1_30s_bio_16  = "d",
+                                   wc2.1_30s_bio_17  = "d",
+                                   wc2.1_30s_bio_18  = "d",
+                                   wc2.1_30s_bio_19  = "d" ))  %>% 
+    mutate(species = data.mammal[[35]]@species,
+           type = "range") %>% 
+  tidyr::pivot_longer( 
+                      cols = 1:19, 
+                      names_to = "bio", 
+                      values_to = "covari") %>%
+  dplyr::bind_rows(b.data.mammal[[i]]) %>%
+  write_csv(., paste0("D:/viz_rb/mammal/",data.mammal[[35]]@species,".csv"))
+  
+}
+
+```
+
+
+make table and histogram
+```{r}
+library(tidyverse)
+library(hrbrthemes)
+library(viridis)
+library(forcats)
+
+
+for(i in 1:length(biovalue_mammal)){
+biovalue_mammal[[i]] %>% mutate(species = ,
+                                type = "range") -> biovalue_mammal[[i]]
+}
+
+
+for(i in 1:length(bg10k_mammal.bio)){   
+bg10k_mammal.bio[[i]] %>% mutate(species = ,
+                                 type = "background") -> bg10k_mammal.bio[[i]]
+}
+
+# Load dataset from github
+data <- data.frame(species = ,
+                   type = c("range", "background"),
+                   bio1 = ,
+                   bio2 = ,
+                   bio3 = ,
+                   bio4 = ,
+                   bio5 = ,
+                   bio6 = ,
+                   bio7 = ,
+                   bio8 = ,
+                   bio9 = , 
+                   bio10 = ,
+                   bio11 = ,
+                   bio12 = ,
+                   bio13 = ,
+                   bio14 = ,
+                   bio15 = ,
+                   bio16 = ,
+                   bio17 = ,
+                   bio18 = ,
+                   bio19 = )
+
+# plot
+p <- data %>%
+  mutate(text = fct_reorder(text, value)) %>%
+  ggplot( aes(x=value, color=text, fill=text)) +
+    geom_histogram(alpha=0.6, binwidth = 5) +
+    scale_fill_viridis(discrete=TRUE) +
+    scale_color_viridis(discrete=TRUE) +
+    geom_density(col=3) +
+    theme_ipsum() +
+    theme(
+      legend.position="none",
+      panel.spacing = unit(0.1, "lines"),
+      strip.text.x = element_text(size = 8)
+    ) +
+    xlab("") +
+    ylab("Assigned Probability (%)") +
+    facet_wrap(~text)
+
+
+ggplot2.histogram(data=weight, xName='weight',
+        groupName='sex', legendPosition="top",
+        alpha=0.5, position="stack")
+```
+
+
+
+
+KS test 
+```{r}
+ks_mammal <- vector()
+for(i in 1:length(biovalue_mammal)){
+ks_mammal[i] <- ks.test(biovalue_mammal[[i]], na.omit(bg10k_mammal.bio[[i]][,1]))$p.value
+}
+
+testbg30 <- sf::read_sf("testbg30.shp")
+testbg30 <- my.bg100k(range.mammal[[3]])
+sp.testbg30 <- as_Spatial(testbg30)
+testbg30.bio <- my.extract(sp.testbg30)
+ks.test(biovalue_mammal[[3]], na.omit(testbg30.bio))
+
+ks.boot(biovalue_mammal[[3]], na.omit(testbg30.bio), nboots = 10000)
+
+
+
+ks.test(m1df$bio1, b)
+
+j <- geodistm(m1dfcd)
+```
+
+
+```{r}
+sample1 <- biovalue_mammal[[3]]
+sample2 <- na.omit(testbg30.bio)
+group <- c(rep("sample1", length(sample1)), rep("sample2", length(sample2)))
+dat <- data.frame(KSD = c(sample1,sample2), group = group)
+# create ECDF of data
+cdf1 <- ecdf(biovalue_mammal[[3]])
+cdf2 <- ecdf(na.omit(testbg30.bio)) 
+# find min and max statistics to draw line between points of greatest distance
+minMax <- seq(min(sample1, sample2), max(sample1, sample2), length.out=length(sample1)) 
+x0 <- minMax[which( abs(cdf1(minMax) - cdf2(minMax)) == max(abs(cdf1(minMax) - cdf2(minMax))) )] 
+y0 <- cdf1(x0) 
+y1 <- cdf2(x0) 
+```
+
+
+
+```{r}
+ggplot(dat, aes(x = KSD, group = group, color = group))+
+  stat_ecdf(size=1) +
+    theme_bw(base_size = 28) +
+    theme(legend.position ="top") +
+    xlab("Sample") +
+    ylab("ECDF") +
+    #geom_line(size=1) +
+    geom_segment(aes(x = x0[1], y = y0[1], xend = x0[1], yend = y1[1]),
+        linetype = "dashed", color = "red") +
+    geom_point(aes(x = x0[1] , y= y0[1]), color="red", size=8) +
+    geom_point(aes(x = x0[1] , y= y1[1]), color="red", size=8) +
+    ggtitle("K-S Test: Sample 1 / Sample 2") +
+    theme(legend.title=element_blank())
+```
+```{r}
+cucconi.test <- function(x, y, method = c("permutation", "bootstrap")){
+
+  # Implementation of the Cucconi test for the two-sample location-scale problem
+  # A permutation/bootstrap distribution of the test statistic (C) under the
+  # null hypothesis is used to calculate the p-value.
+  # Reference: Marozzi (2013), p. 1302-1303
+
+  m <- length(x)
+  n <- length(y)
+  C <- cucconi.teststat(x = x, y = y, m = m, n = n)
+  
+  if(method[1] == "permutation"){
+    h0dist <- cucconi.dist.perm(x = x, y = y)
+  }
+  
+  if(method[1] == "bootstrap"){
+    h0dist <- cucconi.dist.boot(x = x, y = y)
+  }
+  
+  p.value <- length(h0dist[h0dist >= C]) / length(h0dist)
+  
+  cat("\nCucconi two-sample location-scale test\n")
+  cat("\nNull hypothesis: The locations and scales of the two population distributions are equal.\n")
+  cat("Alternative hypothesis: The locations and/or scales of the two population distributions differ.\n")
+  cat(paste("\nC = ", round(C, 3), ", p-value = ", round(p.value, 4), "\n\n", sep=""))
+  
+  return(list(C = C,
+              method = method[1],
+              p.value = p.value))
+}
+```
+
 

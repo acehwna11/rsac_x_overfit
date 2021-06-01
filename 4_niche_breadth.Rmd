@@ -23,7 +23,7 @@ library(tidyverse)
 
 ```{r}
 library(furrr)
-future::plan(multisession, workers = 64)
+future::plan(multisession, workers = 30)
 ```
 
 
@@ -54,6 +54,7 @@ from 12 - 19, they are precipitation. each category can be 10 each.
 ```{r}
 data.mammal <- readr::read_rds(file = "data/data.mammal.rds")
 data.reptile <- readr::read_rds(file = "data/data.reptile.rds")
+data.amphibian <- readr::read_rds(file = "data/data.amphibian.rds")
 ```
 
 
@@ -76,13 +77,34 @@ names(data.mammal[[i]]@data) <- c("wc2.1_30s_bio_01", "wc2.1_30s_bio_02", "wc2.1
 for (i in 1:length(data.reptile)){
 data.reptile[[i]]@data <- reaarange(data.reptile[[i]])
 }
+
+for (i in 1:length(data.reptile)){
+names(data.reptile[[i]]@data) <- c("wc2.1_30s_bio_01", "wc2.1_30s_bio_02", "wc2.1_30s_bio_03", "wc2.1_30s_bio_04",
+                                  "wc2.1_30s_bio_05", "wc2.1_30s_bio_06", "wc2.1_30s_bio_07", "wc2.1_30s_bio_08",
+                                  "wc2.1_30s_bio_09", "wc2.1_30s_bio_10", "wc2.1_30s_bio_11", "wc2.1_30s_bio_12",
+                                  "wc2.1_30s_bio_13", "wc2.1_30s_bio_14", "wc2.1_30s_bio_15", "wc2.1_30s_bio_16",
+                                  "wc2.1_30s_bio_17", "wc2.1_30s_bio_18", "wc2.1_30s_bio_19")
+}
+
+for (i in 1:length(data.amphibian)){
+data.amphibian[[i]]@data <- reaarange(data.amphibian[[i]])
+}
+
+for (i in 1:length(data.amphibian)){
+names(data.amphibian[[i]]@data) <- c("wc2.1_30s_bio_01", "wc2.1_30s_bio_02", "wc2.1_30s_bio_03", "wc2.1_30s_bio_04",
+                                  "wc2.1_30s_bio_05", "wc2.1_30s_bio_06", "wc2.1_30s_bio_07", "wc2.1_30s_bio_08",
+                                  "wc2.1_30s_bio_09", "wc2.1_30s_bio_10", "wc2.1_30s_bio_11", "wc2.1_30s_bio_12",
+                                  "wc2.1_30s_bio_13", "wc2.1_30s_bio_14", "wc2.1_30s_bio_15", "wc2.1_30s_bio_16",
+                                  "wc2.1_30s_bio_17", "wc2.1_30s_bio_18", "wc2.1_30s_bio_19")
+}
+
 ```
 
 
 ```{r}
 library(raster)
 
-bios.name <- paste0("C:/Users/lophital/Documents/rsac_x_overfit/bios/10m/", list.files(pattern="*.tif", path = "C:/Users/lophital/Documents/rsac_x_overfit/bios/10m/"))
+bios.name <- paste0("C:/Users/lophital/Documents/rsac_x_overfit/bios/2.5m/", list.files(pattern="*.tif", path = "C:/Users/lophital/Documents/rsac_x_overfit/bios/2.5m/"))
 
 bios <- list()
 for (i in 1:length(bios.name)){
@@ -179,7 +201,7 @@ stackbio <- raster::stack(bios)
 memory.limit(9999999)
 
 bio_df <- data.frame(na.omit(raster::values(stackbio)))
-
+readr::write_csv(bio_df, "bios/bio_df.csv")
 
 bio_df <- fread("bio_df.csv")
 
@@ -195,6 +217,15 @@ PCA_mammal <- future_map(data.mammal,
                          .options = furrr_options(seed = TRUE),
                          .progress = T)
 
+PCA_reptile <- future_map(data.reptile, 
+                         my.PCA,
+                         .options = furrr_options(seed = TRUE),
+                         .progress = T)
+
+PCA_amphibian <- future_map(data.amphibian, 
+                         my.PCA,
+                         .options = furrr_options(seed = TRUE),
+                         .progress = T)
 
 
 ```
@@ -372,14 +403,80 @@ my.ecospat.grid2 <- function(x){
                                     R = 1000
                                     )}
 
-nb_mammal <- future_map(PCA_mammal, my.ecospat.grid2)
+nb_mammal <- map(PCA_mammal, my.ecospat.grid2)
+nb_reptile <- future_map(PCA_reptile, my.ecospat.grid2)
+nb_amphibian <- future_map(PCA_amphibian, my.ecospat.grid2)
 
-
+nb.01 <- function(x){length(Which(x$z.uncor>0.1, cells=T))}
+nb.03 <- function(x){length(Which(x$z.uncor>0.3, cells=T))}
 nb.05 <- function(x){length(Which(x$z.uncor>0.5, cells=T))}
-nbb.05_mammal <- map_int(nb_mammal, nb.05) 
+nb.09 <- function(x){length(Which(x$z.uncor>0.9, cells=T))}
+
+nbb.01_mammal <- map_int(nb_mammal, nb.01) 
+nbb.03_mammal <- map_int(nb_mammal, nb.03)
+nbb.05_mammal <- map_int(nb_mammal, nb.05)
+nbb.09_mammal <- map_int(nb_mammal, nb.09)
+
+nbb.01_reptile <- map_int(nb_reptile, nb.01) 
+nbb.03_reptile <- map_int(nb_reptile, nb.03)
+nbb.05_reptile <- map_int(nb_reptile, nb.05)
+nbb.09_reptile <- map_int(nb_reptile, nb.09)
+
+nbb.01_amphibian <- map_int(nb_amphibian, nb.01) 
+nbb.03_amphibian <- map_int(nb_amphibian, nb.03)
+nbb.05_amphibian <- map_int(nb_amphibian, nb.05)
+nbb.09_amphibian <- map_int(nb_amphibian, nb.09)
 
 plot(a$z.uncor, main = "Sp1 with default kernel")
 length(Which(x$z.uncor>0.5, cells=T))
+
+```
+
+
+```{r}
+result_mammal <-readr:::read_csv(file = "result_mammal.csv")
+result_mammal %>% mutate(nb_01 = nbb.01_mammal,
+                         nb_03 = nbb.03_mammal,
+                         nb_05 = nbb.05_mammal,
+                         nb_09 = nbb.09_mammal) -> result_mammal
+readr::write_csv(result_mammal, file =  "result_mammal.csv")
+
+result_reptile <-readr:::read_csv(file = "result_reptile.csv")
+result_reptile %>% mutate(nb_01 = nbb.01_reptile,
+                         nb_03 = nbb.03_reptile,
+                         nb_05 = nbb.05_reptile,
+                         nb_09 = nbb.09_reptile) -> result_reptile
+readr::write_csv(result_reptile, file =  "result_reptile.csv")
+
+result_amphibian <-readr:::read_csv(file = "result_amphibian.csv")
+result_amphibian %>% mutate(nb_01 = nbb.01_amphibian,
+                         nb_03 = nbb.03_amphibian,
+                         nb_05 = nbb.05_amphibian,
+                         nb_09 = nbb.09_amphibian) -> result_amphibian
+readr::write_csv(result_amphibian, file =  "result_amphibian.csv")
+
+
+qq <- ggplot(data = result_mammal) +
+    geom_point(aes(x = nb_01, y = rsac_rndcv4k_sph, color = 1)) +
+    geom_smooth(aes(x = nb_01, y= rsac_rndcv4k_sph), method = "lm") +
+    geom_point(aes(x = nb_03, y = rsac_rndcv4k_sph, color = 2)) +
+    geom_smooth(aes(x = nb_03, y= rsac_rndcv4k_sph), method = "lm") +
+    geom_point(aes(x = nb_05, y = rsac_rndcv4k_sph, color = 3)) +
+    geom_smooth(aes(x = nb_05, y= rsac_rndcv4k_sph), method = "lm") +
+    geom_point(aes(x = nb_09, y = rsac_rndcv4k_sph, color = 4)) +
+    geom_smooth(aes(x = nb_09, y= rsac_rndcv4k_sph), method = "lm")
+
+q <- ggplot(data = result_mammal) +
+    geom_point(aes(x = nb_01, y = rsac_rndcv4k_sph, color = 1)) +
+    geom_smooth(aes(x = nb_01, y= rsac_rndcv4k_sph), method = "lm") 
+
+q <- ggplot(data = result_reptile) +
+    geom_point(aes(x = nb_01, y = rsac_rndcv4k_sph, color = 1)) +
+    geom_smooth(aes(x = nb_01, y= rsac_rndcv4k_sph), method = "lm") 
+
+qq <- ggplot(data = result_reptile) +
+    geom_point(aes(x = nb_01, y = rsac_rndcv4k_sph, color = 1)) +
+    geom_smooth(aes(x = nb_01, y= rsac_rndcv4k_sph), method = "lm") 
 ```
 
 
