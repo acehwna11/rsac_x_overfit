@@ -1,0 +1,92 @@
+---
+title: "8_Tuning"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(SDMtune)
+library(blockCV)
+library(ENMeval)
+library(raster)
+library(sf)
+library(sp)
+library(zeallot)
+library(rJava)
+library(dismo)
+```
+
+
+```{r}
+library(furrr)
+future::plan(multisession, workers = 33)
+```
+
+
+```{r}
+
+model_rndcv4k_mammal <- readr::read_rds("model/newmodel/model_rndcv4k_mammal.rds")
+model_spcv4k_mammal <- readr::read_rds("model/newmodel/model_spcv4k_mammal.rds")
+
+
+model_rndcv4k_reptile <- readr::read_rds("model/newmodel/model_rndcv4k_reptile.rds")
+model_spcv4k_reptile <- readr::read_rds("model/newmodel/model_spcv4k_reptile.rds")
+
+
+model_rndcv4k_amphibian <- readr::read_rds("model/newmodel/model_rndcv4k_amphibian.rds")
+model_spcv4k_amphibian <- readr::read_rds("model/newmodel/model_spcv4k_amphibian.rds")
+
+model_rndcv4k.pcnm_reptile <- readr::read_rds("model/newmodel/model_pcnm/model_rndcv4k_reptile.rds")
+model_spcv4k.pcnm_reptile <- readr::read_rds("model/newmodel/model_pcnm/model_spcv4k_reptile.rds")
+
+
+model_rndcv4k.pcnm_amphibian <- readr::read_rds("model/newmodel/model_pcnm/model_rndcv4k_amphibian.rds")
+model_spcv4k.pcnm_amphibian <- readr::read_rds("model/newmodel/model_pcnm/model_spcv4k_amphibian.rds")
+
+```
+
+
+```{r}
+t.t.mammal_0.2 <- readr::read_rds("t.t/newt.t/t.t.mammal_0.2.rds")
+```
+
+
+
+
+```{r}
+
+
+
+h <- list(reg = c(3, 5, 7))
+
+#[1] 0.1 0.5 0.9 1.3 1.7 2.1 2.5 2.9
+
+
+my.grid <-function(x){gridSearch(x, hypers = h, metric = "auc", save_models = T)}
+
+memory.limit(9999999999)
+
+```
+
+```{r}
+grid.rnd_reptile <- furrr::future_map(model_rndcv4k_reptile, my.grid)
+grid.rnd_amphibian <- furrr::future_map(model_rndcv4k_amphibian, my.grid)
+grid.sp_reptile <- furrr::future_map(model_spcv4k_reptile, my.grid)
+grid.sp_amphibian <- furrr::future_map(model_spcv4k_amphibian, my.grid)
+
+grid.rnd.pcnm_reptile <- furrr::future_map(model_rndcv4k.pcnm_reptile, my.grid)
+```
+```{r}
+grid.rnd.pcnm_amphibian <- furrr::future_map(model_rndcv4k.pcnm_amphibian, my.grid)
+write_rds(grid.rnd.pcnm_amphibian, "D:/grid.rnd.pcnm_amphibian.rds")
+grid.sp.pcnm_reptile <- furrr::future_map(model_spcv4k.pcnm_reptile, my.grid)
+write_rds(grid.sp.pcnm_reptile, "D:/grid.sp.pcnm_reptile.rds")
+grid.sp.pcnm_amphibian <- furrr::future_map(model_spcv4k.pcnm_amphibian, my.grid)
+write_rds(grid.sp.pcnm_amphibian, "D:/grid.sp.pcnm_amphibian.rds")
+
+```
+

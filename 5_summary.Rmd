@@ -1,0 +1,275 @@
+---
+title: "5_summary"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r}
+library(readxl)
+library(tidyverse)
+```
+
+```{r}
+result_all <- readr::read_csv("result/result_all.csv")
+result_mammal <- readr::read_csv("result/result_mammal.csv")
+result_reptile <- readr::read_csv("result/result_reptile.csv")
+result_amphibian <- readr::read_csv("result/result_amphibian.csv")
+```
+```{r}
+
+pca_eig2 <- vector()
+for( i in 1:length(PCA_reptile)){
+  pca_eig2[i] <- PCA_reptile[[i]]$eig[2,3] 
+}
+
+result_reptile %>% mutate(PCA_eig2 = pca_eig2) -> result_reptile
+write_csv(result_reptile, "result/result_reptile.csv")
+
+pca_eig2 <- vector()
+for( i in 1:length(PCA_amphibian)){
+  pca_eig2[i] <- PCA_amphibian[[i]]$eig[2,3] 
+}
+
+result_amphibian %>% mutate(PCA_eig2 = pca_eig2) -> result_amphibian
+write_csv(result_amphibian, "result/result_amphibian.csv")
+
+PCA_eig2 <- bind_rows(result_mammal$PCA_eig2, result_reptile$PCA_eig2, result_amphibian$PCA_eig2)
+
+```
+
+
+```{r}
+result_all[1:129,] %>% 
+  mutate(p_value = c(map_dbl(moran_rndsph_mammal, 2), map_dbl(moran_rndsph_reptile, 2))) %>%
+  filter(p_value < 0.05) -> a
+```
+```{r}
+
+taxa <- vector()
+taxa[1:35] <- "mammal"
+taxa[36:129] <- "reptile"
+taxa[130:179] <- "amphibian"
+result_all %>% mutate(taxa = taxa) -> result_all
+```
+
+
+```{r}
+nsample.M <- vector()
+for(i in 1:length(data.mammal)){
+  nsample.M[i] <- nrow(data.mammal[[i]]@data)
+}
+nsample.R <- vector()
+for(i in 1:length(data.reptile)){
+  nsample.R[i] <- nrow(data.reptile[[i]]@data)
+}
+nsample.A <- vector()
+for(i in 1:length(data.amphibian)){
+  nsample.A[i] <- nrow(data.amphibian[[i]]@data)
+}
+
+nsample <- vector()
+nsample[1:35] <- nsample.M
+nsample[36:129] <- nsample.R
+nsample[130:179] <- nsample.A
+
+result_all %>% mutate(nsample = nsample) -> result_all
+```
+
+```{r}
+write_csv(result_all, file = "result/result_all.csv")
+```
+
+
+```{r}
+a <- filter(result_all, rsac_rndcv4k_sph > 0.2) 
+```
+
+잔차 - nb - all
+```{r}
+qq <- ggplot(data = result_all,aes(x = nb_01, y =rsac_rndcv4k_sph)) +
+    geom_point(aes(x = nb_01, y = resid_test_rndcv4k, color = "red")) +
+    geom_smooth(aes(x = nb_01, y= resid_test_rndcv4k, color = "red"), method = "lm") +
+    scale_color_discrete(name="데이터 구분", labels = c("학습", "테스트")) +
+    geom_point(aes(x = nb_01, y = resid_train_rndcv4k, color = "blue")) +
+    geom_smooth(aes(x = nb_01, y= resid_train_rndcv4k, color = "blue"), method = "lm") +
+    labs( x = "생태학적 지위 폭", y = "잔차 평균", title ="종 분포 모형 잔차와 생태학적 지위폭") +
+    theme(axis.text=element_text(size=16),
+          axis.title=element_text(size=16,face="bold"),
+          title=element_text(size=20, face="bold"),
+          legend.text = element_text(size=14))
+```
+
+잔차 - nb - mammal
+```{r}
+qq <- ggplot(data = result_mammal) +
+    geom_point(aes(x = nb_01, y = resid_test_rndcv4k, color = "red")) +
+    geom_smooth(aes(x = nb_01, y= resid_test_rndcv4k, color = "red"), method = "lm") +
+    scale_color_discrete(name="데이터 구분", labels = c("학습", "테스트")) +
+    geom_point(aes(x = nb_01, y = resid_train_rndcv4k, color = "blue")) +
+    geom_smooth(aes(x = nb_01, y= resid_train_rndcv4k, color = "blue"), method = "lm") +
+    labs( x = "생태학적 지위 폭", y = "잔차 평균", title ="포유류 랜덤 교차 검증 종 분포 모형") +
+    theme(axis.text=element_text(size=16),
+          axis.title=element_text(size=16,face="bold"),
+          title=element_text(size=20, face="bold"),
+          legend.text = element_text(size=16))
+```
+
+rsac - nb - all
+```{r}
+qq <- ggplot(data = result_all, aes(x = nb_01, y =rsac_rndcv4k_sph, shape = taxa, color = taxa)) +
+    geom_point(aes(x = nb_01, y = rsac_rndcv4k_sph)) +
+    geom_smooth(aes(x = nb_01, y= rsac_rndcv4k_sph), method = "lm") +
+    labs( x = "생태학적 지위 폭", y = "랜덤 교차검증 모형에서 산출된 잔차의 공간적 자기상관", title = "잔차의 공간적 자기상관과 생태학적 지위 폭") +
+    scale_color_discrete(name="분류학적 종 구분", labels = c("양서류", "포유류", "파충류")) +
+    theme(axis.text=element_text(size=14),
+          axis.title=element_text(size=14,face="bold"),
+          title=element_text(size=20, face="bold"),
+          legend.text = element_text(size=14))
+```
+
+잔차-nb-reptile
+```{r}
+qq <- ggplot(data = result_reptile) +
+    geom_point(aes(x = nb_01, y = resid_test_rndcv4k, color = "red")) +
+    geom_smooth(aes(x = nb_01, y= resid_test_rndcv4k, color = "red"), method = "lm") +
+    scale_color_discrete(name="데이터 구분", labels = c("학습", "테스트")) +
+    geom_point(aes(x = nb_01, y = resid_train_rndcv4k, color = "blue")) +
+    geom_smooth(aes(x = nb_01, y= resid_train_rndcv4k, color = "blue"), method = "lm") +
+    labs( x = "생태학적 지위 폭", y = "잔차의 평균", title ="파충류 랜덤 교차 검증 종 분포 모형") +
+    theme(axis.text=element_text(size=16),
+          axis.title=element_text(size=16,face="bold"),
+          title=element_text(size=20, face="bold"),
+          legend.text = element_text(size=16))
+    ```
+
+잔차-rsac-all    
+    ```{r}
+qq <- ggplot(data = result_all,aes(x = resid_train_rndcv4k, y =rsac_rndcv4k_sph)) +
+    geom_point(aes(x = resid_test_rndcv4k, y = rsac_rndcv4k_sph, color = "red")) +
+    scale_color_discrete(name="데이터 구분", labels = c("학습", "테스트")) +
+    geom_point(aes(x = resid_train_rndcv4k, y = rsac_rndcv4k_sph, color = "blue")) +
+    labs( x = "잔차 평균", y = "잔차 공간적 자기상관", title ="종 분포 모형 잔차와 공간적 자기상관") +
+    theme(axis.text=element_text(size=16),
+          axis.title=element_text(size=16,face="bold"),
+          title=element_text(size=20, face="bold"),
+          legend.text = element_text(size=14))
+```
+    
+    
+```{r}    
+qq <- ggplot(data = result_reptile) +
+    geom_point(aes(x = rmse.all_rndcv4k, y = rsac_rndcv4k_sph)) +
+    geom_smooth(aes(x = rmse.all_rndcv4k, y= rsac_rndcv4k_sph), method = "lm") +
+    labs( x = "RMSE", y = "잔차의 자기상관", title ="파충류 랜덤 교차 검증 종 분포 모형")
+```
+
+rsac-resid-mammal
+```{r}
+
+qq <- ggplot(data = result_mammal) +
+    geom_point(aes(x = rsac_rndcv4k_sph, y = log_train_rndcv4k, color = "red")) +
+    geom_smooth(aes(x = rsac_rndcv4k_sph, y= log_train_rndcv4k, color = "red"), method = "lm") +
+    geom_point(aes(x = rsac_rndcv4k_sph, y = log_test_rndcv4k, color = "blue")) +
+    geom_smooth(aes(x = rsac_rndcv4k_sph, y= log_test_rndcv4k, color = "blue"), method = "lm") +
+    labs( x = "잔차의 자기상관", y = "잔차 log의 평균", title ="포유류 랜덤 교차 검증 종 분포 모형") + 
+    scale_color_discrete(name="데이터 구분", labels = c("학습", "테스트")) +
+    theme(axis.text=element_text(size=14),
+          axis.title=element_text(size=14,face="bold"),
+          title=element_text(size=20, face="bold"),
+          legend.text = element_text(size=14))
+```
+
+```{r}
+qq <- ggplot(data = result_mammal) +
+    geom_point(aes(x = rsac_rndcv4k_sph, y = log_train_rndcv4k, color = "red")) +
+    geom_smooth(aes(x = rsac_rndcv4k_sph, y= log_train_rndcv4k, color = "red"), method = "lm") +
+    geom_point(aes(x = rsac_rndcv4k_sph, y = log_test_rndcv4k, color = "blue")) +
+    geom_smooth(aes(x = rsac_rndcv4k_sph, y= log_test_rndcv4k, color = "blue"), method = "lm") +
+    labs( x = "잔차의 자기상관", y = "mean-log", title ="포유류 랜덤 교차 검증 종 분포 모형") + 
+    scale_color_discrete(name="데이터 구분", labels = c("학습", "테스트")) +
+    theme(axis.text=element_text(size=14),
+          axis.title=element_text(size=14,face="bold"),
+          title=element_text(size=20, face="bold"),
+          legend.text = element_text(size=14))
+```
+
+```{r}
+qq <- ggplot(data = result_all,aes(x = PCA_eig2, y =rsac_rndcv4k_sph, shape = taxa, color = taxa)) +
+    geom_point(aes(x = PCA_eig2, y = rsac_rndcv4k_sph)) +
+    geom_smooth(aes(x = PCA_eig2, y= rsac_rndcv4k_sph), method = "lm") +
+    labs( x = "PC1, PC2 설명 분산", y = "잔차의 자기상관", title ="종 분포 모형 잔차와 PCA 분산") + 
+    scale_color_discrete(name="종 분류군", labels = c("양서류","포유류", "파충류")) +
+    theme(axis.text=element_text(size=16),
+          axis.title=element_text(size=16,face="bold"),
+          title=element_text(size=20, face="bold"),
+          legend.text = element_text(size=16))
+
+
+```
+
+```{r}
+qq <- ggplot(data = result_all,aes(x = nsample, y =rsac_rndcv4k_sph, shape = taxa, color = taxa)) +
+    geom_point(aes(x = nsample, y = rsac_rndcv4k_sph)) +
+    labs( x = "출현자료의 양", y = "잔차의 자기상관", title ="종 분포 모형 잔차와 출현 자료의 양") + 
+    scale_color_discrete(name="종 분류군", labels = c("양서류","포유류", "파충류")) +
+    theme(axis.text=element_text(size=16),
+          axis.title=element_text(size=16,face="bold"),
+          title=element_text(size=20, face="bold"),
+          legend.text = element_text(size=16))
+
+
+```
+
+
+```{r}
+qq <- ggplot(data = result_all,aes(x = nsample, y =resid_test_rndcv4k, shape = taxa, color = taxa)) +
+    geom_point(aes(x = nsample, y = resid_test_rndcv4k)) +
+    labs( x = "출현자료의 양", y = "잔차의 크기", title ="종 분포 모형 잔차크기와 출현 자료의 양") + 
+    scale_color_discrete(name="종 분류군", labels = c("양서류","포유류", "파충류")) +
+    theme(axis.text=element_text(size=16),
+          axis.title=element_text(size=16,face="bold"),
+          title=element_text(size=20, face="bold"),
+          legend.text = element_text(size=16))
+
+
+```
+
+```{r}
+moran_rndsph_mammal <- readr::read_rds(file = "moran/moran_rndsph_mammal.rds")
+moran_rndsph_reptile <- readr::read_rds(file = "moran/moran_rndsph_reptile.rds")
+```
+
+
+
+
+```{r}
+ggplot(data = result_all, aes(x = species, y= nb_01))+
+  geom_boxplot() +
+  labs( x = "분류학적 종 분류", y = "생태적 지위 폭")
+
+ggplot(data = result_all, aes(x = species, y= resid_test_rndcv4k))+
+  geom_boxplot() +
+  labs( x = "분류학적 종 분류", y = "잔차의 평균")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

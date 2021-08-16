@@ -1,0 +1,816 @@
+---
+title: "7.data_viz"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+make table and histogram
+```{r}
+library(tidyverse)
+library(hrbrthemes)
+library(viridis)
+library(forcats)
+library(ggridges)
+```
+RANGE-BACKGROUND COMPARISON 
+```{r}
+data.mammal <- readr::read_rds("data/data.mammal.rds")
+biovalue_mammal.13 <- readr::read_rds("biovalue_mammal.13.rds")
+bg10k_mammal.bio <- readr::read_rds("bg10k_mammal.bio.rds")
+
+#species by species
+readr::write_csv(as.data.frame(biovalue_mammal.13[[1]]), "D:/biovalue_mammal.1.csv")
+
+#names
+biocolnames <- colnames(bg10k_mammal.bio[[1]][,1:19])
+
+#
+biovalue_mammal.13 <- list()
+biovalue_mammal.13[[1]] <- readr::read_csv("D:/biovalue_mammal.1.csv", col_names = biocolnames, skip = 1)
+
+#range data
+
+
+r.data.mammal <- list()  
+for(i in 1){
+  r.data.mammal[[i]] <- data.frame(wc2.1_30s_bio_01 = biovalue_mammal.13[[i]][,1],
+                                   wc2.1_30s_bio_02 = biovalue_mammal.13[[i]][,2],
+                                   wc2.1_30s_bio_03 = biovalue_mammal.13[[i]][,3],
+                                   wc2.1_30s_bio_04 = biovalue_mammal.13[[i]][,4],
+                                   wc2.1_30s_bio_05 = biovalue_mammal.13[[i]][,5],
+                                   wc2.1_30s_bio_06 = biovalue_mammal.13[[i]][,6],
+                                   wc2.1_30s_bio_07 = biovalue_mammal.13[[i]][,7],
+                                   wc2.1_30s_bio_08 = biovalue_mammal.13[[i]][,8],
+                                   wc2.1_30s_bio_09 = biovalue_mammal.13[[i]][,9],
+                                   wc2.1_30s_bio_10 = biovalue_mammal.13[[i]][,10],
+                                   wc2.1_30s_bio_11 = biovalue_mammal.13[[i]][,11],
+                                   wc2.1_30s_bio_12 = biovalue_mammal.13[[i]][,12],
+                                   wc2.1_30s_bio_13 = biovalue_mammal.13[[i]][,13],
+                                   wc2.1_30s_bio_14 = biovalue_mammal.13[[i]][,14],
+                                   wc2.1_30s_bio_15 = biovalue_mammal.13[[i]][,15],
+                                   wc2.1_30s_bio_16 = biovalue_mammal.13[[i]][,16],
+                                   wc2.1_30s_bio_17 = biovalue_mammal.13[[i]][,17],
+                                   wc2.1_30s_bio_18 = biovalue_mammal.13[[i]][,18],
+                                   wc2.1_30s_bio_19 = biovalue_mammal.13[[i]][,19],
+                                   species = data.mammal[[i]]@species,
+                                   type = "range")
+}
+
+
+b.data.mammal <- list()
+for(i in 1:length(bg10k_mammal.bio)){
+  b.data.mammal[[i]] <- data.frame(wc2.1_30s_bio_01 = bg10k_mammal.bio[[i]][,1],
+                                   wc2.1_30s_bio_02 = bg10k_mammal.bio[[i]][,2],
+                                   wc2.1_30s_bio_03 = bg10k_mammal.bio[[i]][,3],
+                                   wc2.1_30s_bio_04 = bg10k_mammal.bio[[i]][,4],
+                                   wc2.1_30s_bio_05 = bg10k_mammal.bio[[i]][,5],
+                                   wc2.1_30s_bio_06 = bg10k_mammal.bio[[i]][,6],
+                                   wc2.1_30s_bio_07 = bg10k_mammal.bio[[i]][,7],
+                                   wc2.1_30s_bio_08 = bg10k_mammal.bio[[i]][,8],
+                                   wc2.1_30s_bio_09 = bg10k_mammal.bio[[i]][,9],
+                                   wc2.1_30s_bio_10 = bg10k_mammal.bio[[i]][,10],
+                                   wc2.1_30s_bio_11 = bg10k_mammal.bio[[i]][,11],
+                                   wc2.1_30s_bio_12 = bg10k_mammal.bio[[i]][,12],
+                                   wc2.1_30s_bio_13 = bg10k_mammal.bio[[i]][,13],
+                                   wc2.1_30s_bio_14 = bg10k_mammal.bio[[i]][,14],
+                                   wc2.1_30s_bio_15 = bg10k_mammal.bio[[i]][,15],
+                                   wc2.1_30s_bio_16 = bg10k_mammal.bio[[i]][,16],
+                                   wc2.1_30s_bio_17 = bg10k_mammal.bio[[i]][,17],
+                                   wc2.1_30s_bio_18 = bg10k_mammal.bio[[i]][,18],
+                                   wc2.1_30s_bio_19 = bg10k_mammal.bio[[i]][,19],
+                                   species = data.mammal[[i]]@species,
+                                   type = "background")}
+
+r.comp_mammal <- list()
+r.comp_mammal[[1]] <- tidyr::pivot_longer(r.data.mammal[[1]], 
+                                            cols = 1:19, 
+                                            names_to = "bio", 
+                                            values_to = "covari")
+
+
+b.comp_mammal <- list()
+b.comp_mammal[[1]] <- tidyr::pivot_longer(b.data.mammal[[1]], 
+                                            cols = 1:19, 
+                                            names_to = "bio", 
+                                            values_to = "covari")
+
+br.comp_mammal <- list()
+br.comp_mammal[[1]] <- dplyr::bind_rows(r.comp_mammal ,b.comp_mammal)
+
+
+br.comp_mammal <- list()                    
+br.comp_mammal[[1]] <- data.table::fread("D:/viz_rb/mammal/Artibeus jamaicensis.csv")  
+br.comp_mammal[[2]] <- data.table::fread("D:/viz_rb/mammal/Blarina brevicauda.csv")  
+
+p4 <- 
+  br.comp_mammal[[2]] %>% ggplot2::ggplot(aes(x = covari,
+                                    y = ..density..,
+                                    fill = fct_rev(type))) +
+  geom_density(alpha = 0.2, colour = "black", position = "identity") +
+  facet_wrap( ~ bio, scale = "free") +
+  labs(x = "Bioclimate", y = "Density", fill = "Data type") +
+  ggtitle(paste0(br.comp_mammal[[2]]$species[2],"_Range/Background values density")) +
+  theme_light() +
+  theme(strip.text.x = element_text(size = 8, colour = "black"),
+        strip.background = element_rect(colour="gray",
+                                        fill="white")
+    )
+
+ggsave(paste0(br.comp_mammal[[2]]$species[2],"_br.comp.png"), p4, width=20, height= 12, dpi = 100, limitsize = F)
+```
+
+```{r}
+
+data.table::fread("D:/viz_rb/mammal/Capreolus capreolus.csv") %>%
+ 
+                ggplot2::ggplot(aes(x = covari,
+                                    y = ..density..,
+                                    fill = fct_rev(type))) +
+  geom_density(alpha = 0.2, colour = "black", position = "identity") +
+  facet_wrap( ~ bio, scale = "free") +
+  labs(x = "Bioclimate", y = "Density", fill = "Data type") +
+  ggtitle(paste0("Capreolus capreolus_Range/Background values density")) +
+  theme_light() +
+  theme(strip.text.x = element_text(size = 8, colour = "black"),
+        strip.background = element_rect(colour="gray",
+                                        fill="white")
+    ) -> p4
+
+ggsave("Capreolus capreolus_br.comp.png", p4, width=20, height= 12, dpi = 100, limitsize = F)
+
+
+```
+
+```{r}
+
+data.table::fread("D:/viz_rb/mammal/Loxodonta africana.csv") %>%
+ 
+ggplot2::ggplot(aes(x = covari,
+                                    y = ..density..,
+                                    fill = fct_rev(type))) +
+  geom_density(alpha = 0.2, colour = "black", position = "identity") +
+  facet_wrap( ~ bio, scale = "free") +
+  labs(x = "Bioclimate", y = "Density", fill = "Data type") +
+  ggtitle(paste0("Loxodonta africana/Background values density")) +
+  theme_light() +
+  theme(strip.text.x = element_text(size = 8, colour = "black"),
+        strip.background = element_rect(colour="gray",
+                                        fill="white")
+    ) -> p4
+
+ggsave("Loxodonta africana_br.comp.png", p4, width=20, height= 12, dpi = 100, limitsize = F)
+
+
+```
+
+```{r roll and print}
+
+data.table::fread("D:/viz_rb/mammal/Macaca fascicularis.csv") %>%
+ 
+ggplot2::ggplot(aes(x = covari,
+                                    y = ..density..,
+                                    fill = fct_rev(type))) +
+  geom_density(alpha = 0.2, colour = "black", position = "identity") +
+  facet_wrap( ~ bio, scale = "free") +
+  labs(x = "Bioclimate", y = "Density", fill = "Data type") +
+  ggtitle(paste0("Macaca fascicularis/Background values density")) +
+  theme_light() +
+  theme(strip.text.x = element_text(size = 8, colour = "black"),
+        strip.background = element_rect(colour="gray",
+                                        fill="white")
+    ) -> p4
+
+ggsave("Macaca fascicularis_br.comp.png", p4, width=20, height= 12, dpi = 100, limitsize = F)
+
+
+data.table::fread("D:/viz_rb/mammal/Macropus giganteus.csv") %>%
+ 
+ggplot2::ggplot(aes(x = covari,
+                                    y = ..density..,
+                                    fill = fct_rev(type))) +
+  geom_density(alpha = 0.2, colour = "black", position = "identity") +
+  facet_wrap( ~ bio, scale = "free") +
+  labs(x = "Bioclimate", y = "Density", fill = "Data type") +
+  ggtitle(paste0("Macropus giganteus/Background values density")) +
+  theme_light() +
+  theme(strip.text.x = element_text(size = 8, colour = "black"),
+        strip.background = element_rect(colour="gray",
+                                        fill="white")
+    ) -> p4
+
+ggsave("Macropus giganteus_br.comp.png", p4, width=20, height= 12, dpi = 100, limitsize = F)
+
+
+data.table::fread("D:/viz_rb/mammal/Macrotis lagotis.csv") %>%
+ 
+ggplot2::ggplot(aes(x = covari,
+                                    y = ..density..,
+                                    fill = fct_rev(type))) +
+  geom_density(alpha = 0.2, colour = "black", position = "identity") +
+  facet_wrap( ~ bio, scale = "free") +
+  labs(x = "Bioclimate", y = "Density", fill = "Data type") +
+  ggtitle(paste0("Macrotis lagotis/Background values density")) +
+  theme_light() +
+  theme(strip.text.x = element_text(size = 8, colour = "black"),
+        strip.background = element_rect(colour="gray",
+                                        fill="white")
+    ) -> p4
+
+ggsave("Macrotis lagotis_br.comp.png", p4, width=20, height= 12, dpi = 100, limitsize = F)
+
+
+data.table::fread("D:/viz_rb/mammal/Microtus pennsylvanicus.csv") %>%
+ 
+ggplot2::ggplot(aes(x = covari,
+                                    y = ..density..,
+                                    fill = fct_rev(type))) +
+  geom_density(alpha = 0.2, colour = "black", position = "identity") +
+  facet_wrap( ~ bio, scale = "free") +
+  labs(x = "Bioclimate", y = "Density", fill = "Data type") +
+  ggtitle(paste0("Microtus pennsylvanicus/Background values density")) +
+  theme_light() +
+  theme(strip.text.x = element_text(size = 8, colour = "black"),
+        strip.background = element_rect(colour="gray",
+                                        fill="white")
+    ) -> p4
+
+ggsave("Microtus pennsylvanicus_br.comp.png", p4, width=20, height= 12, dpi = 100, limitsize = F)
+```
+
+
+
+```{r}
+data.table::fread("D:/viz_rb/mammal/Myodes glareolus.csv") %>%
+ 
+ggplot2::ggplot(aes(x = covari,
+                                    y = ..density..,
+                                    fill = fct_rev(type))) +
+  geom_density(alpha = 0.2, colour = "black", position = "identity") +
+  facet_wrap( ~ bio, scale = "free") +
+  labs(x = "Bioclimate", y = "Density", fill = "Data type") +
+  ggtitle(paste0("Myodes glareolus/Background values density")) +
+  theme_light() +
+  theme(strip.text.x = element_text(size = 8, colour = "black"),
+        strip.background = element_rect(colour="gray",
+                                        fill="white")
+    ) -> p4
+
+ggsave("Myodes glareolus_br.comp.png", p4, width=20, height= 12, dpi = 100, limitsize = F)
+
+
+data.table::fread("D:/viz_rb/mammal/Myotis brandtii.csv") %>%
+ 
+ggplot2::ggplot(aes(x = covari,
+                                    y = ..density..,
+                                    fill = fct_rev(type))) +
+  geom_density(alpha = 0.2, colour = "black", position = "identity") +
+  facet_wrap( ~ bio, scale = "free") +
+  labs(x = "Bioclimate", y = "Density", fill = "Data type") +
+  ggtitle(paste0("Myotis brandtii/Background values density")) +
+  theme_light() +
+  theme(strip.text.x = element_text(size = 8, colour = "black"),
+        strip.background = element_rect(colour="gray",
+                                        fill="white")
+    ) -> p4
+
+ggsave("Myotis brandtii_br.comp.png", p4, width=20, height= 12, dpi = 100, limitsize = F)
+
+
+data.table::fread("D:/viz_rb/mammal/Nyctalus noctula.csv") %>%
+ 
+ggplot2::ggplot(aes(x = covari,
+                                    y = ..density..,
+                                    fill = fct_rev(type))) +
+  geom_density(alpha = 0.2, colour = "black", position = "identity") +
+  facet_wrap( ~ bio, scale = "free") +
+  labs(x = "Bioclimate", y = "Density", fill = "Data type") +
+  ggtitle(paste0("Nyctalus noctula/Background values density")) +
+  theme_light() +
+  theme(strip.text.x = element_text(size = 8, colour = "black"),
+        strip.background = element_rect(colour="gray",
+                                        fill="white")
+    ) -> p4
+
+ggsave("Nyctalus noctula_br.comp.png", p4, width=20, height= 12, dpi = 100, limitsize = F)
+```
+
+```{r}
+data.table::fread("D:/viz_rb/mammal/Ochotona princeps.csv") %>%
+ 
+ggplot2::ggplot(aes(x = covari,
+                                    y = ..density..,
+                                    fill = fct_rev(type))) +
+  geom_density(alpha = 0.2, colour = "black", position = "identity") +
+  facet_wrap( ~ bio, scale = "free") +
+  labs(x = "Bioclimate", y = "Density", fill = "Data type") +
+  ggtitle(paste0("Ochotona princeps/Background values density")) +
+  theme_light() +
+  theme(strip.text.x = element_text(size = 8, colour = "black"),
+        strip.background = element_rect(colour="gray",
+                                        fill="white")
+    ) -> p4
+
+ggsave("Ochotona princeps_br.comp.png", p4, width=20, height= 12, dpi = 100, limitsize = F)
+
+
+data.table::fread("D:/viz_rb/mammal/Odocoileus virginianus.csv") %>%
+ 
+ggplot2::ggplot(aes(x = covari,
+                                    y = ..density..,
+                                    fill = fct_rev(type))) +
+  geom_density(alpha = 0.2, colour = "black", position = "identity") +
+  facet_wrap( ~ bio, scale = "free") +
+  labs(x = "Bioclimate", y = "Density", fill = "Data type") +
+  ggtitle(paste0("Odocoileus virginianus/Background values density")) +
+  theme_light() +
+  theme(strip.text.x = element_text(size = 8, colour = "black"),
+        strip.background = element_rect(colour="gray",
+                                        fill="white")
+    ) -> p4
+
+ggsave("Odocoileus virginianus_br.comp.png", p4, width=20, height= 12, dpi = 100, limitsize = F)
+```
+
+```{r}
+data.table::fread("D:/viz_rb/mammal/Ornithorhynchus anatinus.csv") %>%
+ 
+ggplot2::ggplot(aes(x = covari,
+                                    y = ..density..,
+                                    fill = fct_rev(type))) +
+  geom_density(alpha = 0.2, colour = "black", position = "identity") +
+  facet_wrap( ~ bio, scale = "free") +
+  labs(x = "Bioclimate", y = "Density", fill = "Data type") +
+  ggtitle(paste0("Ornithorhynchus anatinus/Background values density")) +
+  theme_light() +
+  theme(strip.text.x = element_text(size = 8, colour = "black"),
+        strip.background = element_rect(colour="gray",
+                                        fill="white")
+    ) -> p4
+
+ggsave("Ornithorhynchus anatinus_br.comp.png", p4, width=20, height= 12, dpi = 100, limitsize = F)
+
+
+data.table::fread("D:/viz_rb/mammal/Peromyscus maniculatus.csv") %>%
+ 
+ggplot2::ggplot(aes(x = covari,
+                                    y = ..density..,
+                                    fill = fct_rev(type))) +
+  geom_density(alpha = 0.2, colour = "black", position = "identity") +
+  facet_wrap( ~ bio, scale = "free") +
+  labs(x = "Bioclimate", y = "Density", fill = "Data type") +
+  ggtitle(paste0("Peromyscus maniculatus/Background values density")) +
+  theme_light() +
+  theme(strip.text.x = element_text(size = 8, colour = "black"),
+        strip.background = element_rect(colour="gray",
+                                        fill="white")
+    ) -> p4
+
+ggsave("Peromyscus maniculatus_br.comp.png", p4, width=20, height= 12, dpi = 100, limitsize = F)
+```
+```{r}
+
+data.table::fread("D:/viz_rb/mammal/Pipistrellus pipistrellus.csv") %>%
+ 
+ggplot2::ggplot(aes(x = covari,
+                                    y = ..density..,
+                                    fill = fct_rev(type))) +
+  geom_density(alpha = 0.2, colour = "black", position = "identity") +
+  facet_wrap( ~ bio, scale = "free") +
+  labs(x = "Bioclimate", y = "Density", fill = "Data type") +
+  ggtitle(paste0("Pipistrellus pipistrellus/Background values density")) +
+  theme_light() +
+  theme(strip.text.x = element_text(size = 8, colour = "black"),
+        strip.background = element_rect(colour="gray",
+                                        fill="white")
+    ) -> p4
+
+ggsave("Pipistrellus pipistrellus_br.comp.png", p4, width=20, height= 12, dpi = 100, limitsize = F)
+
+
+data.table::fread("D:/viz_rb/mammal/Pseudocheirus peregrinus.csv") %>%
+ 
+ggplot2::ggplot(aes(x = covari,
+                                    y = ..density..,
+                                    fill = fct_rev(type))) +
+  geom_density(alpha = 0.2, colour = "black", position = "identity") +
+  facet_wrap( ~ bio, scale = "free") +
+  labs(x = "Bioclimate", y = "Density", fill = "Data type") +
+  ggtitle(paste0("Pseudocheirus peregrinus/Background values density")) +
+  theme_light() +
+  theme(strip.text.x = element_text(size = 8, colour = "black"),
+        strip.background = element_rect(colour="gray",
+                                        fill="white")
+    ) -> p4
+
+ggsave("Pseudocheirus peregrinus_br.comp.png", p4, width=20, height= 12, dpi = 100, limitsize = F)
+
+
+data.table::fread("D:/viz_rb/mammal/Pteropus poliocephalus.csv") %>%
+ 
+ggplot2::ggplot(aes(x = covari,
+                                    y = ..density..,
+                                    fill = fct_rev(type))) +
+  geom_density(alpha = 0.2, colour = "black", position = "identity") +
+  facet_wrap( ~ bio, scale = "free") +
+  labs(x = "Bioclimate", y = "Density", fill = "Data type") +
+  ggtitle(paste0("Pteropus poliocephalus/Background values density")) +
+  theme_light() +
+  theme(strip.text.x = element_text(size = 8, colour = "black"),
+        strip.background = element_rect(colour="gray",
+                                        fill="white")
+    ) -> p4
+
+ggsave("Pteropus poliocephalus_br.comp.png", p4, width=20, height= 12, dpi = 100, limitsize = F)
+
+
+data.table::fread("D:/viz_rb/mammal/Rattus fuscipes.csv") %>%
+ 
+ggplot2::ggplot(aes(x = covari,
+                                    y = ..density..,
+                                    fill = fct_rev(type))) +
+  geom_density(alpha = 0.2, colour = "black", position = "identity") +
+  facet_wrap( ~ bio, scale = "free") +
+  labs(x = "Bioclimate", y = "Density", fill = "Data type") +
+  ggtitle(paste0("Rattus fuscipes/Background values density")) +
+  theme_light() +
+  theme(strip.text.x = element_text(size = 8, colour = "black"),
+        strip.background = element_rect(colour="gray",
+                                        fill="white")
+    ) -> p4
+
+ggsave("Rattus fuscipes_br.comp.png", p4, width=20, height= 12, dpi = 100, limitsize = F)
+
+
+data.table::fread("D:/viz_rb/mammal/Rhinolophus hipposideros.csv") %>%
+ 
+ggplot2::ggplot(aes(x = covari,
+                                    y = ..density..,
+                                    fill = fct_rev(type))) +
+  geom_density(alpha = 0.2, colour = "black", position = "identity") +
+  facet_wrap( ~ bio, scale = "free") +
+  labs(x = "Bioclimate", y = "Density", fill = "Data type") +
+  ggtitle(paste0("Rhinolophus hipposideros/Background values density")) +
+  theme_light() +
+  theme(strip.text.x = element_text(size = 8, colour = "black"),
+        strip.background = element_rect(colour="gray",
+                                        fill="white")
+    ) -> p4
+
+ggsave("Rhinolophus hipposideros_br.comp.png", p4, width=20, height= 12, dpi = 100, limitsize = F)
+
+
+data.table::fread("D:/viz_rb/mammal/Rupicapra rupicapra.csv") %>%
+ 
+ggplot2::ggplot(aes(x = covari,
+                                    y = ..density..,
+                                    fill = fct_rev(type))) +
+  geom_density(alpha = 0.2, colour = "black", position = "identity") +
+  facet_wrap( ~ bio, scale = "free") +
+  labs(x = "Bioclimate", y = "Density", fill = "Data type") +
+  ggtitle(paste0("Rupicapra rupicapra/Background values density")) +
+  theme_light() +
+  theme(strip.text.x = element_text(size = 8, colour = "black"),
+        strip.background = element_rect(colour="gray",
+                                        fill="white")
+    ) -> p4
+
+ggsave("Rupicapra rupicapra_br.comp.png", p4, width=20, height= 12, dpi = 100, limitsize = F)
+
+
+data.table::fread("D:/viz_rb/mammal/Sorex araneus.csv") %>%
+ 
+ggplot2::ggplot(aes(x = covari,
+                                    y = ..density..,
+                                    fill = fct_rev(type))) +
+  geom_density(alpha = 0.2, colour = "black", position = "identity") +
+  facet_wrap( ~ bio, scale = "free") +
+  labs(x = "Bioclimate", y = "Density", fill = "Data type") +
+  ggtitle(paste0("Sorex araneus/Background values density")) +
+  theme_light() +
+  theme(strip.text.x = element_text(size = 8, colour = "black"),
+        strip.background = element_rect(colour="gray",
+                                        fill="white")
+    ) -> p4
+
+ggsave("Sorex araneus_br.comp.png", p4, width=20, height= 12, dpi = 100, limitsize = F)
+```
+```{r}
+
+data.table::fread("D:/viz_rb/mammal/Sorex minutus.csv") %>%
+ 
+ggplot2::ggplot(aes(x = covari,
+                                    y = ..density..,
+                                    fill = fct_rev(type))) +
+  geom_density(alpha = 0.2, colour = "black", position = "identity") +
+  facet_wrap( ~ bio, scale = "free") +
+  labs(x = "Bioclimate", y = "Density", fill = "Data type") +
+  ggtitle(paste0("Sorex minutus/Background values density")) +
+  theme_light() +
+  theme(strip.text.x = element_text(size = 8, colour = "black"),
+        strip.background = element_rect(colour="gray",
+                                        fill="white")
+    ) -> p4
+
+ggsave("Sorex minutus_br.comp.png", p4, width=20, height= 12, dpi = 100, limitsize = F)
+
+
+data.table::fread("D:/viz_rb/mammal/Tachyglossus aculeatus.csv") %>%
+ 
+ggplot2::ggplot(aes(x = covari,
+                                    y = ..density..,
+                                    fill = fct_rev(type))) +
+  geom_density(alpha = 0.2, colour = "black", position = "identity") +
+  facet_wrap( ~ bio, scale = "free") +
+  labs(x = "Bioclimate", y = "Density", fill = "Data type") +
+  ggtitle(paste0("Tachyglossus aculeatus/Background values density")) +
+  theme_light() +
+  theme(strip.text.x = element_text(size = 8, colour = "black"),
+        strip.background = element_rect(colour="gray",
+                                        fill="white")
+    ) -> p4
+
+ggsave("Tachyglossus aculeatus_br.comp.png", p4, width=20, height= 12, dpi = 100, limitsize = F)
+
+
+data.table::fread("D:/viz_rb/mammal/Talpa europaea.csv") %>%
+ 
+ggplot2::ggplot(aes(x = covari,
+                                    y = ..density..,
+                                    fill = fct_rev(type))) +
+  geom_density(alpha = 0.2, colour = "black", position = "identity") +
+  facet_wrap( ~ bio, scale = "free") +
+  labs(x = "Bioclimate", y = "Density", fill = "Data type") +
+  ggtitle(paste0("Talpa europaea/Background values density")) +
+  theme_light() +
+  theme(strip.text.x = element_text(size = 8, colour = "black"),
+        strip.background = element_rect(colour="gray",
+                                        fill="white")
+    ) -> p4
+
+ggsave("Talpa europaea_br.comp.png", p4, width=20, height= 12, dpi = 100, limitsize = F)
+
+
+data.table::fread("D:/viz_rb/mammal/Trichosurus vulpecula.csv") %>%
+ 
+ggplot2::ggplot(aes(x = covari,
+                                    y = ..density..,
+                                    fill = fct_rev(type))) +
+  geom_density(alpha = 0.2, colour = "black", position = "identity") +
+  facet_wrap( ~ bio, scale = "free") +
+  labs(x = "Bioclimate", y = "Density", fill = "Data type") +
+  ggtitle(paste0("Trichosurus vulpecula/Background values density")) +
+  theme_light() +
+  theme(strip.text.x = element_text(size = 8, colour = "black"),
+        strip.background = element_rect(colour="gray",
+                                        fill="white")
+    ) -> p4
+
+ggsave("Trichosurus vulpecula_br.comp.png", p4, width=20, height= 12, dpi = 100, limitsize = F)
+
+
+data.table::fread("D:/viz_rb/mammal/Urocyon cinereoargenteus.csv") %>%
+ 
+ggplot2::ggplot(aes(x = covari,
+                                    y = ..density..,
+                                    fill = fct_rev(type))) +
+  geom_density(alpha = 0.2, colour = "black", position = "identity") +
+  facet_wrap( ~ bio, scale = "free") +
+  labs(x = "Bioclimate", y = "Density", fill = "Data type") +
+  ggtitle(paste0("Urocyon cinereoargenteus/Background values density")) +
+  theme_light() +
+  theme(strip.text.x = element_text(size = 8, colour = "black"),
+        strip.background = element_rect(colour="gray",
+                                        fill="white")
+    ) -> p4
+
+ggsave("Urocyon cinereoargenteus_br.comp.png", p4, width=20, height= 12, dpi = 100, limitsize = F)
+
+```
+
+
+
+```{r raw data}
+data.mammal <- readr::read_rds("data/data.mammal.rds")
+
+my.pseperate <- function(x){dplyr::bind_cols(dplyr::slice(x@coords, 1:which(x@pa==0)[1]-1),
+                                             dplyr::slice(x@data, 1:which(x@pa==0)[1]-1))}
+
+my.aseperate <- function(x){dplyr::bind_cols(dplyr::slice(x@coords, which(x@pa==0)[1]:nrow(x@coords)),
+                                             dplyr::slice(x@data, which(x@pa==0)[1]:nrow(x@data)))}
+
+p.data.mammal <- map(data.mammal, my.pseperate)
+a.data.mammal <- map(data.mammal, my.aseperate)
+
+
+for(i in 1:length(p.data.mammal)){
+p.data.mammal[[i]] %>% mutate(species = data.mammal[[i]]@species,
+                              type = "presence") -> p.data.mammal[[i]]
+}
+
+for(i in 1:length(a.data.mammal)){
+a.data.mammal[[i]] %>% mutate(species = data.mammal[[i]]@species,
+                              type = "background") -> a.data.mammal[[i]]
+}
+
+data4viz_mammal <- bind_rows(p.data.mammal, a.data.mammal)
+
+```
+
+
+
+
+
+```{r}
+p1 <- ggplot(data4viz_mammal) +
+    geom_density_ridges(aes(x = wc2.1_30s_bio_1, y = species,
+                            fill = type), alpha = 0.6) +
+    ggtitle("Bio1 with presence/background") +
+    xlab("연 평균 기온") + ylab("Species") + theme_light() +
+    theme(plot.title=element_text(size=20, color="black"))
+p1
+```
+
+```{r}
+p2 <- ggplot() +
+    geom_density_ridges(data = b.comp_mammal[[1]], aes(x = covari, y = bio), alpha = 0.6) +
+    geom_density_ridges(data = r.comp_mammal[[1]], aes(x = covari, y = bio), alpha = 0.6) +
+    xlim(c(-10, 400)) +
+    ggtitle("Bio1 with range/background") +
+    xlab("frequency") + ylab("bioclimate") + theme_light() +
+    theme(plot.title=element_text(size=20, color="black"))
+p2
+```
+
+
+
+```{r}
+p <- ggplot(data4viz_mammal) +
+  geom_density_ridges_gradient(aes(x = wc2.1_30s_bio_1, y = species, fill = ..x..), scale = 3, rel_min_height = 0.01) +
+  scale_fill_viridis(name = "Temp. [F]", option = "H") +
+  labs(title = 'Temperatures in Lincoln NE in 2016') +
+  theme_ipsum() +
+    theme_light(
+      legend.position="none",
+      panel.spacing = unit(0.1, "lines"),
+      strip.text.x = element_text(size = 8)
+    )
+p
+```
+
+
+
+
+```{r}
+dfs <-
+  data.frame(
+    "estimate" = rnorm(300),
+    "loading" = factor(rep(1:5, 60)),
+    "set" = factor(rep(1:3, 100),),
+    "pop" = rep(c(0.1, 0.15, 0.20, 0.05, 0.7), 60)
+  )
+
+
+loadsummary2 <- crossing("type" =  data4viz_mammal$type, "loading" = dfs$species)
+loadsummary2$pop <- rep(c(0.1, 0.15, 0.20, 0.05, 0.7), 3)
+
+p <- ggplot(data4viz_mammal) +
+  geom_density_ridges(aes(x = wc2.1_30s_bio_1, y = species,
+                            fill = type)
+    jittered_points = TRUE,
+    point_shape = "|", point_size = 2, size = 0.25,
+    position = position_points_jitter(height = 0), alpha = 0.6, scale = 1.2) + 
+    geom_text(data = loadsummary2, 
+              aes(y = species, x = wc2.1_30s_bio_1, label = pop),
+              position=position_nudge(y= .25), 
+              colour="black", 
+              size=3.5)
+
+p + geom_segment(aes(
+  x = pop,
+  y = as.numeric(loading) - .05,
+  xend = pop,
+  yend = as.numeric(loading) + .15))
+#> Picking joint bandwidth of 0.437
+####
+
+# Plot
+
+
+
+ggplot(data4viz_mammal) +
+    geom_density_ridges(aes(x = yield, y = site,
+                            group = interaction(year, site),
+                            fill = year), alpha = 0.8)
+
+
+
+for(i in 1:length(biovalue_mammal)){
+biovalue_mammal[[i]] %>% mutate(species = data.mammal[[i]]@species,
+                                type = "range") -> biovalue_mammal[[i]]
+}
+
+
+for(i in 1:length(bg10k_mammal.bio)){   
+bg10k_mammal.bio[[i]] %>% mutate(species = ,
+                                 type = "background") -> bg10k_mammal.bio[[i]]
+}
+
+# Load dataset from github
+data <- data.frame(species = ,
+                   type = c("range", "background"),
+                   bio1 = ,
+                   bio2 = ,
+                   bio3 = ,
+                   bio4 = ,
+                   bio5 = ,
+                   bio6 = ,
+                   bio7 = ,
+                   bio8 = ,
+                   bio9 = , 
+                   bio10 = ,
+                   bio11 = ,
+                   bio12 = ,
+                   bio13 = ,
+                   bio14 = ,
+                   bio15 = ,
+                   bio16 = ,
+                   bio17 = ,
+                   bio18 = ,
+                   bio19 = )
+
+# plot
+p <- ggplot() +
+    geom_histogram(data = r.comp_mammal[[1]], aes(x = covari, y = bio), alpha=0.6) +
+    geom_histogram(data = b.comp_mammal[[1]], aes(x = covari, y = bio), alpha=0.6) +
+    theme_ipsum() +
+    theme(
+      legend.position="none",
+      panel.spacing = unit(0.1, "lines"),
+      strip.text.x = element_text(size = 8),
+      strip.background = element_rect(colour="black",
+                                        fill="white")
+    ) +
+    xlab("") +
+    ylab("Assigned Probability (%)") +
+    facet_wrap(~bio, scales = "free")
+
+
+
+```
+
+```{r}
+p3 <- ggplot() +
+      geom_density_ridges(data = br.comp_mammal[[1]], aes(x = covari, y = bio, fill = type), alpha = 0.6) +
+      facet_wrap(~bio, scales = "free") +
+      ggtitle("Bio1 with range/background") +
+    xlab("frequency") + ylab("bioclimate") + theme_light() +
+    theme(plot.title=element_text(size=20, color="black"))
+
+
+```
+
+```{r}
+iris.tidy %>% 
+  mutate(round.measurement = 
+           round(measurement, digits = 0)%%2) %>% 
+  dplyr::filter(round.measurement == 1) %>% 
+  nrow()
+
+iris.tidy %>% 
+  ggplot2::ggplot(aes(x = measurement,
+                      y = ..density..,
+                      fill = Species)
+  ) +
+  geom_density(alpha = 0.5, 
+               colour = "black", 
+               position = "identity"
+  )
+
+p4 <- 
+  br.comp_mammal[[1]] %>% ggplot2::ggplot(aes(x = covari,
+                                    y = ..density..,
+                                    fill = fct_rev(type))) +
+  geom_density(alpha = 0.2, colour = "black", position = "identity"
+  ) +
+  facet_wrap( ~ bio, scale = "free") +
+  labs(x = "Bioclimate", y = "Density") +
+  ggtitle("Range/Background values density") +
+  theme_light() +
+  theme(
+      legend.position="none",
+      strip.text.x = element_text(size = 8, colour = "black"),
+      strip.background = element_rect(colour="gray",
+                                        fill="white")
+    )
+
+```
+
+
+
+```{r save option}
+ggsave("test.pdf", p4, width=20, height= 12, dpi = 100, limitsize = F)
+```
+

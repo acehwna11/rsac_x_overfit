@@ -1,0 +1,1013 @@
+---
+title: "6_SEVM"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(tidyverse)
+library(SDMtune)
+library(blockCV)
+library(ENMeval)
+library(raster)
+library(sf)
+library(sp)
+library(zeallot)
+library(rJava)
+library(dismo)
+library(vegan)
+```
+
+```{r}
+library(furrr)
+future::plan(multisession, workers = 32)
+
+```
+
+
+데이터 가져오기
+```{r 데이터 가져오기}
+data.mammal <- readr::read_rds("data/newdata/data.mammal.rds")
+data.reptile <- readr::read_rds(file = "data/newdata/data.reptile.rds")
+data.amphibian <- readr::read_rds(file = "data/newdata/data.amphibian.rds")
+
+```
+
+
+거리 매트릭스 가져오기
+```{r}
+p.distm.3 <- readr::read_rds("D:/p.distm/p.distm.mammal.3.rds") 
+p.distm.21 <- readr::read_rds("D:/p.distm/p.distm.mammal.21.rds")
+
+a.distm.mammal <- readr::read_rds("distm/a.distm.mammal.rds")
+
+p.distm.reptile <- readr::read_rds("distm/p.distm.reptile.rds")
+p.distm.amphibian <- readr::read_rds("distm/p.distm.amphibian.rds")
+a.distm.amphibian <- readr::read_rds("distm/a.distm.amphibian.rds")
+```
+
+
+```{r}
+
+pcnm.p.reptile <- readr::read_rds("pcnm/pcnm.p.reptile.rds")
+pcnm.a.reptile <- readr::read_rds("pcnm/pcnm.a.reptile.rds")
+
+pcnm.p.amphibian <- readr::read_rds("pcnm/pcnm.p.amphibian.rds")
+pcnm.a.amphibian <- readr::read_rds("pcnm/pcnm.a.amphibian.rds")
+data.amphibian.copy <- data.amphibian
+data.amphibian.copy <- data.amphibian.copy[-c(5,9,10,23,25,26,27,29,31,33,34,42,44,45,49)]
+
+```
+
+
+tooo big removeeee
+
+```{r}
+p.distm.21[c(5,8,11,12,14,17,19,21)] <- NULL
+p.distm.21[c(3,5)] <- NULL
+```
+
+
+
+12turtle 48gecko 78
+```{r}
+p.distm.reptile[c(12,48,78)] <- NULL
+
+```
+
+?
+```{r}
+k <- vector()
+for(i in 1:91){
+  k[i] <- sum(data.reptile[[i]]@pa == 1)
+}
+which(k > 10000)
+```
+
+```{r}
+p.distm.reptile[which(k > 10000)] <- NULL
+data.reptile[which(k > 10000)] <- NULL
+```
+
+
+fuck above.
+
+```{r}
+data.reptile[which(num < 11000)] -> data.reptile
+data.reptile <- map(data.reptile, addSamplesToBg)
+```
+
+```{r}
+data.amphibian.copy <- map(data.amphibian.copy, addSamplesToBg)
+#no don't... a matrix is original one.. no time to make new one
+```
+
+
+
+```{r}
+p.reptile <- vector()
+for(i in 1:length(data.reptile)){
+p.reptile[i] <- sum(data.reptile[[i]]@pa == 1)} 
+
+p.reptile
+```
+```{r}
+p.amphibian <- vector()
+for(i in 1:length(data.amphibian)){
+p.amphibian[i] <- sum(data.amphibian[[i]]@pa == 1)} 
+
+p.amphibian
+```
+
+
+```{r}
+p.reptile.pcnm <- vector()
+for(i in 1:length(pcnm.p.reptile)){
+p.reptile.pcnm[i] <- nrow(pcnm.p.reptile[[i]]$vectors)}
+
+p.reptile.pcnm
+```
+
+```{r}
+p.amphibian.pcnm <- vector()
+for(i in 1:length(pcnm.p.amphibian)){
+p.amphibian.pcnm[i] <- nrow(pcnm.p.amphibian[[i]]$vectors)}
+
+p.amphibian.pcnm
+```
+
+
+```{r}
+for(i in 1:70){
+  print(isTRUE(p.reptile.pcnm[i] == p.reptile[i]))
+}
+```
+
+```{r}
+for(i in 1:35){
+  print(isTRUE(p.amphibian.pcnm[i] == p.amphibian[i]))
+}
+```
+
+
+```{r}
+a.reptile <- vector()
+for(i in 1:length(data.reptile)){
+a.reptile[i] <- sum(data.reptile[[i]]@pa == 0)} 
+
+a.reptile
+```
+```{r}
+a.reptile.pcnm <- vector()
+for(i in 1:length(pcnm.p.reptile)){
+a.reptile.pcnm[i] <- nrow(pcnm.a.reptile[[i]]$vectors)}
+
+a.reptile.pcnm
+```
+```{r}
+for(i in 1:70){
+  print(isTRUE(a.reptile.pcnm[i] == a.reptile[i]))
+}
+```
+
+```{r}
+a.amphibian <- vector()
+for(i in 1:length(data.amphibian.copy)){
+a.amphibian[i] <- sum(data.amphibian.copy[[i]]@pa == 0)} 
+
+a.amphibian
+```
+```{r}
+a.amphibian.pcnm <- vector()
+for(i in 1:length(pcnm.p.amphibian)){
+a.amphibian.pcnm[i] <- nrow(pcnm.a.amphibian[[i]]$vectors)}
+
+a.amphibian.pcnm
+```
+```{r}
+for(i in 1:35){
+  print(isTRUE(a.amphibian.pcnm[i] == a.amphibian[i]))
+}
+```
+
+
+
+data.reptile and pcnm p a reptile is equal.
+
+```{r}
+library(FactoMineR)
+
+PCA_reptile <- list()
+for (i in 1:length(data.reptile)){
+  PCA_reptile[[i]] <- PCA(data.reptile[[i]]@data, ncp = 19)
+}
+
+PCA_amphibian <- list()
+for (i in 1:length(data.amphibian.copy)){
+  PCA_amphibian[[i]] <- PCA(data.amphibian.copy[[i]]@data)
+} 
+```
+
+
+```{r}
+
+PCA12345_reptile <- list()
+for(i in 1:length(PCA_reptile)){
+  PCA12345_reptile[[i]] <- c(names(tail(sort(PCA_reptile[[i]]$var$cos2[,1]), 1)),
+                            names(tail(sort(PCA_reptile[[i]]$var$cos2[,2]), 1)),
+                            names(tail(sort(PCA_reptile[[i]]$var$cos2[,3]), 1)),
+                            names(tail(sort(PCA_reptile[[i]]$var$cos2[,4]), 1)),
+                            names(tail(sort(PCA_reptile[[i]]$var$cos2[,5]), 1))
+                            )}
+
+
+
+PCA12345_amphibian <- list()
+for(i in 1:length(PCA_amphibian)){
+  PCA12345_amphibian[[i]] <- c(names(tail(sort(PCA_amphibian[[i]]$var$cos2[,1]), 1)),
+                             names(tail(sort(PCA_amphibian[[i]]$var$cos2[,2]), 1)),
+                             names(tail(sort(PCA_amphibian[[i]]$var$cos2[,3]), 1)),
+                             names(tail(sort(PCA_amphibian[[i]]$var$cos2[,4]), 1)),
+                             names(tail(sort(PCA_amphibian[[i]]$var$cos2[,5]), 1)))}
+```
+
+
+
+```{r}
+ncol.pcnm.p.reptile <- vector()
+for(i in 1:length(pcnm.p.reptile)){
+ncol.pcnm.p.reptile[i] <- ncol(pcnm.p.reptile[[i]]$vectors)
+}
+
+ncol.pcnm.a.reptile <- vector()
+for(i in 1:length(pcnm.a.reptile)){
+ncol.pcnm.a.reptile[i] <- ncol(pcnm.a.reptile[[i]]$vectors)
+}
+
+which(ncol.pcnm.p.reptile < 14)
+which(ncol.pcnm.a.reptile < 14)
+```
+these shits will be thrown
+
+```{r}
+ncol.pcnm.p.amphibian <- vector()
+for(i in 1:length(pcnm.p.amphibian)){
+ncol.pcnm.p.amphibian[i] <- ncol(pcnm.p.amphibian[[i]]$vectors)
+}
+
+ncol.pcnm.a.amphibian <- vector()
+for(i in 1:length(pcnm.a.amphibian)){
+ncol.pcnm.a.amphibian[i] <- ncol(pcnm.a.amphibian[[i]]$vectors)
+}
+
+which(ncol.pcnm.p.amphibian < 14) #11 25 
+which(ncol.pcnm.a.amphibian < 14) #21
+```
+
+
+```{r}
+pcnm.a.reptile.copy <- pcnm.a.reptile
+pcnm.p.reptile.copy <- pcnm.p.reptile
+
+pcnm.p.reptile.copy <- pcnm.p.reptile.copy[-c(22, 27, 58, 60, 61)]
+pcnm.a.reptile.copy <- pcnm.a.reptile.copy[-c(22, 27, 58, 60, 61)]
+```
+
+
+```{r}
+pcnm.a.amphibian.copy <- pcnm.a.amphibian
+pcnm.p.amphibian.copy <- pcnm.p.amphibian
+
+pcnm.p.amphibian.copy <- pcnm.p.amphibian.copy[-c(11, 21, 25)]
+pcnm.a.amphibian.copy <- pcnm.a.amphibian.copy[-c(11, 21, 25)]
+```
+
+
+cut pcnm vectors
+```{r}
+df.pcnm.reptile <- list()
+for(i in 1:65){
+as.data.frame(rbind(pcnm.p.reptile.copy[[i]]$vectors[,1:14],
+                    pcnm.a.reptile.copy[[i]]$vectors[,1:14])) -> df.pcnm.reptile[[i]]}
+
+```
+
+```{r}
+df.pcnm.amphibian <- list()
+for(i in 1:32){
+as.data.frame(rbind(pcnm.p.amphibian.copy[[i]]$vectors[,1:14],
+                    pcnm.a.amphibian.copy[[i]]$vectors[,1:14])) -> df.pcnm.amphibian[[i]]}
+
+```
+
+
+```{r}
+which(map_dbl(df.pcnm.reptile, ncol) != 14)
+
+data.reptile.copy <- data.reptile
+PCA12345_reptile.copy <- PCA12345_reptile
+PCA_reptile.copy <- PCA_reptile
+
+data.reptile.copy[-c(22, 27, 58, 60, 61)] -> data.reptile.copy
+PCA12345_reptile.copy[-c(22, 27, 58, 60, 61)] -> PCA12345_reptile.copy
+PCA_reptile.copy[-c(22, 27, 58, 60, 61)] -> PCA_reptile.copy
+
+test <- list()
+for(i in 1:65){
+data.reptile.copy[[i]]@data %>% dplyr:::select(PCA12345_reptile.copy[[i]]) %>% cbind(df.pcnm.reptile[[i]]) -> test[[i]]}
+
+which(map_dbl(test, ncol) != 19)
+```
+```{r}
+which(map_dbl(df.pcnm.amphibian, ncol) != 14)
+
+data.amphibian.copy2 <- data.amphibian.copy #주의 앰피는 렙타랑 조금 과정이 달랏음.
+PCA12345_amphibian.copy <- PCA12345_amphibian
+PCA_amphibian.copy <- PCA_amphibian
+
+data.amphibian.copy2[-c(11, 21, 25)] -> data.amphibian.copy2 
+PCA12345_amphibian.copy[-c(11, 21, 25)] -> PCA12345_amphibian.copy
+PCA_amphibian.copy[-c(11, 21, 25)] -> PCA_amphibian.copy
+
+
+test <- list()
+for(i in 1:32){
+data.amphibian.copy2[[i]]@data %>% dplyr:::select(PCA12345_amphibian.copy[[i]]) %>% cbind(df.pcnm.amphibian[[i]]) -> test[[i]]}
+
+which(map_dbl(test, ncol) != 19) 
+```
+
+
+
+```{r}
+#c( 4  8 13 16 18 20 21 34 35 37 41 42 47 48 52 53 59) overlapped.. 
+
+PCA12345_reptile.copy[[4]]
+names(tail(sort(PCA_reptile.copy[[4]]$var$cos2[,5])))
+PCA12345_reptile.copy[[4]][5] <- "wc2.1_30s_bio_07"
+
+PCA12345_reptile.copy[[8]]
+names(tail(sort(PCA_reptile.copy[[8]]$var$cos2[,5])))
+PCA12345_reptile.copy[[8]][5] <- "wc2.1_30s_bio_19"
+
+PCA12345_reptile.copy[[13]]
+names(tail(sort(PCA_reptile.copy[[13]]$var$cos2[,5])))
+PCA12345_reptile.copy[[13]][5] <- "wc2.1_30s_bio_09"
+
+PCA12345_reptile.copy[[16]]
+names(tail(sort(PCA_reptile.copy[[16]]$var$cos2[,5])))
+PCA12345_reptile.copy[[16]][5] <- "wc2.1_30s_bio_17"
+
+PCA12345_reptile.copy[[18]]
+names(tail(sort(PCA_reptile.copy[[18]]$var$cos2[,5])))
+PCA12345_reptile.copy[[18]][5] <- "wc2.1_30s_bio_08"
+
+PCA12345_reptile.copy[[20]]
+names(tail(sort(PCA_reptile.copy[[20]]$var$cos2[,5])))
+PCA12345_reptile.copy[[20]][5] <- "wc2.1_30s_bio_19"
+
+PCA12345_reptile.copy[[21]]
+names(tail(sort(PCA_reptile.copy[[21]]$var$cos2[,3])))
+PCA12345_reptile.copy[[21]][3] <- "wc2.1_30s_bio_12"
+
+PCA12345_reptile.copy[[34]]
+names(tail(sort(PCA_reptile.copy[[34]]$var$cos2[,5])))
+PCA12345_reptile.copy[[34]][5] <- "wc2.1_30s_bio_14"
+
+PCA12345_reptile.copy[[35]]
+names(tail(sort(PCA_reptile.copy[[35]]$var$cos2[,5])))
+PCA12345_reptile.copy[[35]][5] <- "wc2.1_30s_bio_08"
+
+PCA12345_reptile.copy[[37]]
+names(tail(sort(PCA_reptile.copy[[37]]$var$cos2[,5])))
+PCA12345_reptile.copy[[37]][5] <- "wc2.1_30s_bio_03"
+
+PCA12345_reptile.copy[[41]]
+names(tail(sort(PCA_reptile.copy[[41]]$var$cos2[,5])))
+PCA12345_reptile.copy[[41]][5] <- "wc2.1_30s_bio_02"
+
+PCA12345_reptile.copy[[42]]
+names(tail(sort(PCA_reptile.copy[[42]]$var$cos2[,5])))
+PCA12345_reptile.copy[[42]][5] <- "wc2.1_30s_bio_19"
+
+PCA12345_reptile.copy[[47]]
+names(tail(sort(PCA_reptile.copy[[47]]$var$cos2[,5])))
+PCA12345_reptile.copy[[47]][5] <- "wc2.1_30s_bio_02"
+
+PCA12345_reptile.copy[[48]]
+names(tail(sort(PCA_reptile.copy[[48]]$var$cos2[,3])))
+PCA12345_reptile.copy[[48]][3] <- "wc2.1_30s_bio_16"
+names(tail(sort(PCA_reptile.copy[[48]]$var$cos2[,5])))
+PCA12345_reptile.copy[[48]][5] <- "wc2.1_30s_bio_08"
+
+PCA12345_reptile.copy[[52]]
+names(tail(sort(PCA_reptile.copy[[52]]$var$cos2[,5])))
+PCA12345_reptile.copy[[52]][5] <- "wc2.1_30s_bio_07"
+
+PCA12345_reptile.copy[[53]]
+names(tail(sort(PCA_reptile.copy[[53]]$var$cos2[,4])))
+PCA12345_reptile.copy[[53]][4] <- "wc2.1_30s_bio_07"
+
+PCA12345_reptile.copy[[59]]
+names(tail(sort(PCA_reptile.copy[[59]]$var$cos2[,5])))
+PCA12345_reptile.copy[[59]][5] <- "wc2.1_30s_bio_09"
+
+
+for(i in 1:21){
+data.reptile[[i]]@data %>% dplyr:::select(PCA12345_reptile[[i]]) %>% cbind(df.pcnm.reptile[[i]]) -> test[[i]]}
+
+which(map_dbl(test, ncol) != 19)
+
+
+```
+```{r}
+# c(1  2  5  8 13 22 23 24 25 28 31)
+
+
+PCA12345_amphibian.copy[[1]]
+names(tail(sort(PCA_amphibian.copy[[1]]$var$cos2[,5])))
+PCA12345_amphibian.copy[[1]][5] <- "wc2.1_30s_bio_09"
+
+PCA12345_amphibian.copy[[2]]
+names(tail(sort(PCA_amphibian.copy[[2]]$var$cos2[,4])))
+PCA12345_amphibian.copy[[2]][4] <- "wc2.1_30s_bio_18"
+
+PCA12345_amphibian.copy[[5]]
+names(tail(sort(PCA_amphibian.copy[[5]]$var$cos2[,4])))
+PCA12345_amphibian.copy[[5]][4] <- "wc2.1_30s_bio_13"
+
+PCA12345_amphibian.copy[[8]]
+names(tail(sort(PCA_amphibian.copy[[8]]$var$cos2[,4])))
+PCA12345_amphibian.copy[[8]][4] <- "wc2.1_30s_bio_18"
+
+PCA12345_amphibian.copy[[13]]
+names(tail(sort(PCA_amphibian.copy[[13]]$var$cos2[,5])))
+PCA12345_amphibian.copy[[13]][5] <- "wc2.1_30s_bio_10"
+
+PCA12345_amphibian.copy[[22]]
+names(tail(sort(PCA_amphibian.copy[[22]]$var$cos2[,4])))
+PCA12345_amphibian.copy[[22]][4] <- "wc2.1_30s_bio_03"
+
+PCA12345_amphibian.copy[[23]]
+names(tail(sort(PCA_amphibian.copy[[23]]$var$cos2[,5])))
+PCA12345_amphibian.copy[[23]][5] <- "wc2.1_30s_bio_04"
+
+PCA12345_amphibian.copy[[24]]
+names(tail(sort(PCA_amphibian.copy[[24]]$var$cos2[,5])))
+PCA12345_amphibian.copy[[24]][5] <- "wc2.1_30s_bio_04"
+
+PCA12345_amphibian.copy[[25]]
+names(tail(sort(PCA_amphibian.copy[[25]]$var$cos2[,5])))
+PCA12345_amphibian.copy[[25]][5] <- "wc2.1_30s_bio_15"
+
+PCA12345_amphibian.copy[[28]]
+names(tail(sort(PCA_amphibian.copy[[28]]$var$cos2[,4])))
+PCA12345_amphibian.copy[[28]][4] <- "wc2.1_30s_bio_08"
+
+PCA12345_amphibian.copy[[31]]
+names(tail(sort(PCA_amphibian.copy[[31]]$var$cos2[,5])))
+PCA12345_amphibian.copy[[31]][5] <- "wc2.1_30s_bio_03"
+
+
+test <- list()
+for(i in 1:32){
+data.amphibian.copy2[[i]]@data %>% dplyr:::select(PCA12345_amphibian.copy[[i]]) %>% cbind(df.pcnm.amphibian[[i]]) -> test[[i]]}
+
+which(map_dbl(test, ncol) != 19) 
+
+```
+
+
+
+
+
+
+
+```{r}
+for(i in 1:65){
+print(isTRUE(nrow(test[[i]]) == nrow(data.reptile.copy[[i]]@data)))}
+
+for(i in 1:65){
+print(isTRUE(ncol(test[[i]]) == ncol(data.reptile.copy[[i]]@data)))}
+
+
+```
+```{r}
+for(i in 1:32){
+print(isTRUE(nrow(test[[i]]) == nrow(data.amphibian.copy2[[i]]@data)))}
+
+for(i in 1:32){
+print(isTRUE(ncol(test[[i]]) == ncol(data.amphibian.copy2[[i]]@data)))}
+
+
+```
+
+
+```{r CONFIRM}
+for(i in 1:65){
+data.reptile.copy[[i]]@data <- test[[i]]}
+
+for(i in 1:65){
+  print(dim(data.reptile.copy[[i]]@data))
+}
+
+
+```
+```{r CONFIRM}
+for(i in 1:32){
+data.amphibian.copy[[i]]@data <- test[[i]]}
+
+for(i in 1:32){
+  print(dim(data.yyyy.copy[[i]]@data))
+}
+
+
+```{r}
+write_rds(data.reptile.copy, "data/newdata/data.pcnm.reptile.rds")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+#21 got less pcnm col, p got 2010col, a got 8col
+for(i in 22:35){
+as.data.frame(rbind(pcnm.p.amphibian[[i]]$vectors,
+pcnm.a.amphibian[[i]]$vectors[,1:ncol(pcnm.p.amphibian[[i]]$vectors)])) -> k[[i]]}
+```
+
+
+
+
+
+amphibian. higher than 10k is
+
+```{r}
+k <- vector()
+for(i in 1:50){
+  k[i] <- sum(data.amphibian[[i]]@pa == 1)
+}
+which(k > 10000)
+```
+
+
+
+
+```{r}
+p.distm.amphibian[c(5,9,10,23,25,26,27,29,31,33,34,42,44,45,49)] <- NULL
+a.distm.amphibian[c(5,9,10,23,25,26,27,29,31,33,34,42,44,45,49)] <- NULL
+```
+
+```{r}
+memory.limit(999999999)
+```
+
+```{r}
+pcnm.p.reptile <- furrr::future_map(p.distm.reptile, 
+                                      pcnm, 
+                                      .options = furrr_options(seed = TRUE), 
+                                      .progress = T)
+#됬다 ㅠㅠ
+pcnm.a.reptile <- furrr::future_map(a.distm.reptile,
+                                      pcnm,
+                                      .options = furrr_options(seed = TRUE), 
+                                      .progress = T)
+
+```
+
+
+```{r}
+pcnm.p.amphibian <- furrr::future_map(p.distm.amphibian, 
+                                      pcnm, 
+                                      .options = furrr_options(seed = TRUE), 
+                                      .progress = T)
+#됬다 ㅠㅠ
+pcnm.a.amphibian <- furrr::future_map(a.distm.amphibian,
+                                      pcnm,
+                                      .options = furrr_options(seed = TRUE), 
+                                      .progress = T)
+
+```
+PCNM 6, data.mammal 10 Macaca fascicularis just got 9 vecotr
+
+
+
+```{r}
+pcnm.p.mammal <- list()
+for(i in 1:length(p.distm.3)){
+pcnm.p.mammal[[i]] <- vegan::pcnm(p.distm.3[[i]])  
+}
+
+pcnm.p.mammal <- list()
+for(i in 5:length(p.distm.21)){
+pcnm.p.mammal[[i]] <- vegan::pcnm(p.distm.21[[i]])  
+}
+
+```
+```{r}
+pcnm.a.mammal <- list()
+for(i in 1:length(p.distm.3)){
+pcnm.a.mammal[[i]] <- vegan::pcnm(a.distm.mammal[[i]])  
+}
+```
+
+
+
+
+```{r}
+
+pcnm.p.reptile <- list()
+for(i in 1:length(p.distm.reptile)){
+pcnm.p.reptile[[i]] <- vegan::pcnm(p.distm.reptile[[i]])  
+}
+
+pcnm.p.reptile <- furrr::future_map(p.distm.reptile, pcnm, 
+                                    .options = furrr_options(seed = TRUE), .progress = T)
+```
+
+```{r}
+p.distm.amphibian <- readr::read_rds("distm/p.distm.amphibian.rds")
+pcnm.p.amphibian <- list()
+for(i in 1:length(p.distm.amphibian)){
+pcnm.p.amphibian[[i]] <- vegan::pcnm(p.distm.amphibian[[i]])  
+}
+```
+
+
+
+
+
+
+```{r}
+model_rndcv4k_amphibian <- read_rds("model/newmodel/model_rndcv4k_amphibian.rds")
+model_rndcv4k_amphibian[c(5,9,10,23,25,26,27,29,31,33,34,42,44,45,49)] <- NULL
+
+data.amphibian <- read_rds("data/newdata/data.amphibian.rds")
+data.amphibian[c(5,9,10,23,25,26,27,29,31,33,34,42,44,45,49)] <- NULL
+
+```
+
+
+만들어진 PCNM 가져오기 reptile
+```{r} 
+pcnm.a.reptile <- readr::read_rds("pcnm/pcnm.a.reptile.rds")
+pcnm.p.reptile <- readr::read_rds("pcnm/pcnm.p.reptile.rds")
+```
+
+
+
+
+```{r}
+my.ncol <- function(x){ncol(x$vectors)}
+my.nrow <- function(x){nrow(x$vectors)}
+
+map_int(pcnm.a.reptile, my.ncol) -> ncol.a.reptile
+map_int(pcnm.p.reptile, my.ncol) -> ncol.p.reptile
+
+map_int(pcnm.a.reptile, my.nrow) -> nrow.a.reptile
+map_int(pcnm.p.reptile, my.nrow) -> nrow.p.reptile
+
+which(ncol.a.reptile < 19) #58
+which(ncol.p.reptile < 19) #8, 25, 53, 56, 58, 59
+
+pcnm.a.amphibian[c(11, 21, 25)] <- NULL
+pcnm.p.amphibian[c(11, 21, 25)] <- NULL
+data.amphibian[c(11, 21, 25)] <- NULL
+```
+
+```{r}
+nrow.ap.reptile
+```
+
+```{r}
+nrow.data.reptile
+```
+```{r}
+nrow.p.reptile
+
+```
+```{r}
+my.nrow3 <- function(x){nrow(x@data[x@pa == 1,])}
+my.nrow4 <- function(x){nrow(x@data[x@pa == 0,])}
+
+nrow.p.data.reptile <- map_int(data.reptile, my.nrow3)
+nrow.a.data.reptile <- map_int(data.reptile, my.nrow4)
+```
+
+```{r}
+df.data.p <- data.frame(id = 1:length(nrow.p.data.reptile),
+                        nrow = nrow.p.data.reptile)
+df.pcnm.p <- data.frame(id = 1:length(nrow.p.reptile),
+                        nrow = nrow.p.reptile)
+df.pcnm.a <- data.frame(id = 1:length(nrow.a.reptile),
+                        nrow = nrow.a.reptile)
+df.data.a <- data.frame(id = 1:length(nrow.a.data.reptile),
+                        nrow = nrow.a.data.reptile)
+inner_join(df.pcnm.p, df.data.p, by = "nrow")
+```
+
+```{r}
+inner_join(df.pcnm.a, df.data.p, by = "nrow")
+```
+
+
+
+
+```{r}
+nrow.a.reptile + nrow.p.reptile -> nrow.ap.reptile
+df.pcnm <- data.frame(id.pcnm = 1:67,
+                      nrow = nrow.ap.reptile)
+df.data <- data.frame(id.data = 1:91,
+                      nrow = nrow.data.reptile)
+
+dplyr::inner_join(df.data, df.pcnm, by = "nrow")
+
+```
+
+```{r}
+my.nrow2 <- function(x){nrow(x@data)}
+map_int(data.reptile, my.nrow2) -> nrow.data.reptile
+
+
+```
+
+```{r}
+for(i in 1:67){which(nrow.ap.reptile[i] == nrow.data.reptile[i])}
+```
+
+
+
+
+
+```{r}
+k <- list()
+for(i in 1:20){
+as.data.frame(rbind(pcnm.p.amphibian[[i]]$vectors,
+pcnm.a.amphibian[[i]]$vectors[,1:ncol(pcnm.p.amphibian[[i]]$vectors)])) -> k[[i]]}
+#21 got less pcnm col, p got 2010col, a got 8col
+for(i in 22:35){
+as.data.frame(rbind(pcnm.p.amphibian[[i]]$vectors,
+pcnm.a.amphibian[[i]]$vectors[,1:ncol(pcnm.p.amphibian[[i]]$vectors)])) -> k[[i]]}
+
+
+```
+
+
+
+
+
+```{r}
+k <- list()
+for(i in 1:20){
+as.data.frame(rbind(pcnm.p.amphibian[[i]]$vectors,
+pcnm.a.amphibian[[i]]$vectors[,1:ncol(pcnm.p.amphibian[[i]]$vectors)])) -> k[[i]]}
+#21 got less pcnm col, p got 2010col, a got 8col
+for(i in 22:35){
+as.data.frame(rbind(pcnm.p.amphibian[[i]]$vectors,
+pcnm.a.amphibian[[i]]$vectors[,1:ncol(pcnm.p.amphibian[[i]]$vectors)])) -> k[[i]]}
+
+
+```
+too much vectors... 
+
+# choose 16 in ratio
+```{r}
+k <- list()
+for(i in 1:35){
+as.data.frame(rbind(pcnm.p.amphibian[[i]]$vectors[,round(seq.int(1, ncol(pcnm.p.amphibian[[i]]$vectors), length.out =16))], 
+pcnm.a.amphibian[[i]]$vectors[,round(seq.int(1, ncol(pcnm.a.amphibian[[i]]$vectors), length.out =16))])) -> k[[i]]}
+
+```
+
+
+PCNM p 11 got just 4 column. remove it.(among 35)
+and again, pcnm a 20 got 8 column
+```{r}
+
+pcnm.p.ncol <- vector()
+for(i in 1:35){
+  ncol(pcnm.p.amphibian[[i]]$vectors) -> pcnm.p.ncol[i]
+}
+
+pcnm.a.ncol <- vector()
+for(i in 1:35){
+  ncol(pcnm.a.amphibian[[i]]$vectors) -> pcnm.a.ncol[i]
+}
+
+which(pcnm.a.ncol < 19) #21
+which(pcnm.p.ncol < 19) #11, 25
+
+pcnm.a.amphibian[c(11, 21, 25)] <- NULL
+pcnm.p.amphibian[c(11, 21, 25)] <- NULL
+data.amphibian[c(11, 21, 25)] <- NULL
+```
+
+```{r to show pcnm var imp}
+pcnm.p.ncol <- vector()
+for(i in 1:32){
+  ncol(pcnm.p.amphibian[[i]]$vectors) -> pcnm.p.ncol[i]
+}
+
+pcnm.a.ncol <- vector()
+for(i in 1:32){
+  ncol(pcnm.a.amphibian[[i]]$vectors) -> pcnm.a.ncol[i]
+}
+
+which(pcnm.a.ncol < 50) #0
+which(pcnm.p.ncol < 50) #28
+
+pcnm.a.amphibian[28] <- NULL
+pcnm.p.amphibian[28] <- NULL
+
+```
+
+
+# choose 16 in varsel
+```{r}
+k <- list()
+for(i in 1:31){
+as.data.frame(rbind(pcnm.p.amphibian[[i]]$vectors[,1:50], 
+pcnm.a.amphibian[[i]]$vectors[,1:50])) -> k[[i]]}
+
+```
+
+
+
+
+
+```{r}
+library(FactoMineR)
+
+PCA_amphibian <- list()
+for (i in 1:length(data.amphibian)){
+  PCA_amphibian[[i]] <- PCA(data.amphibian[[i]]@data)
+} 
+```
+
+```{r}
+PCA123_amphibian <- list()
+for(i in 1:length(PCA_amphibian)){
+  PCA123_amphibian[[i]] <- c(names(tail(sort(PCA_amphibian[[i]]$var$cos2[,1]), 1)),
+                       names(tail(sort(PCA_amphibian[[i]]$var$cos2[,2]), 1)),
+                       names(tail(sort(PCA_amphibian[[i]]$var$cos2[,3]), 1)))}
+
+PCA123_amphibian[c(11, 21, 25)] <- NULL
+PCA123_amphibian[c(28)] <- NULL
+
+for(i in 1:10){
+data.amphibian[[i]]@data %>% dplyr:::select(PCA123_amphibian[[i]]) %>% cbind(k[[i]]) -> k[[i]]}
+
+
+
+
+data.amphibian.test <- data.amphibian
+
+
+for(i in 1:10){
+data.amphibian.test[[i]]@data <- k[[i]]}
+
+t.t.amphibian_0.2.test <- list()
+for (i in 1:10){
+  t.t.amphibian_0.2.test[[i]] <- trainValTest(data.amphibian.test[[i]], 
+                                         test = 0.2, 
+                                         only_presence = TRUE, 
+                                         seed = 1)}
+```
+
+
+```{r}
+rnd4k <- function(x){randomFolds(x[[1]], 
+                                 k = 4,
+                                 only_presence = TRUE,
+                                 seed = 1)}
+
+folds.rnd4k_amphibian.test <- map(t.t.amphibian_0.2.test, rnd4k)
+```
+
+t.t.amp 10 got glm error
+
+```{r}
+t.t.amphibian_0.2.test <- t.t.amphibian_0.2.test[-10] 
+folds.rnd4k_amphibian.test <- folds.rnd4k_amphibian.test[-10] 
+```
+
+after remove 10, still error
+```{r}
+t.t.amphibian_0.2.test <- t.t.amphibian_0.2.test[-22] 
+folds.rnd4k_amphibian.test <- folds.rnd4k_amphibian.test[-22] 
+```
+
+```{r}
+model_rndcv4k_amphibian <- future_map2(t.t.amphibian_0.2.test, 
+                                    folds.rnd4k_amphibian.test, 
+                                    maxnet.train, 
+                                    .options = furrr_options(seed = TRUE),
+                                    .progress = T)
+```
+
+```{r}
+folds.sp4k_amphibian <- readr::read_rds("folds/folds.sp4k_amphibian.rds")
+folds.sp4k_amphibian[c(5,9,10,23,25,26,27,29,31,33,34,42,44,45,49)] <- NULL
+folds.sp4k_amphibian[c(11, 21, 25)] <- NULL
+folds.sp4k_amphibian <- folds.sp4k_amphibian[-10] 
+folds.sp4k_amphibian <- folds.sp4k_amphibian[-22] 
+```
+
+
+```{r}
+model_spcv4k_amphibian <- future_map2(t.t.amphibian_0.2.test, 
+                                    folds.sp4k_amphibian, 
+                                    maxnet.train, 
+                                    .options = furrr_options(seed = TRUE),
+                                    .progress = T)
+```
+
+
+```{r}
+b <- SDMtune::varSel(maxent.a1@models[[1]], metric = "auc",test = maxent.a1@models[[1]]@data, bg4cor = data.amphibian.test[[1]])
+c <- SDMtune:::varImp(maxent.a1)
+
+SDMtune::
+```
+
+
+```{r}
+# Acquire environmental variables
+files <- list.files(path = file.path(system.file(package = "dismo"), "ex"),
+                    pattern = "grd", full.names = TRUE)
+predictors <- raster::stack(files)
+
+# Prepare presence and background locations
+p_coords <- virtualSp$presence
+bg_coords <- virtualSp$background
+
+# Create SWD object
+data <- prepareSWD(species = "Virtual species", p = p_coords, a = bg_coords,
+                   env = predictors, categorical = "biome")
+
+# Split presence locations in training (80%) and testing (20%) datasets
+datasets <- trainValTest(data, test = 0.2, only_presence = TRUE)
+train <- datasets[[1]]
+test <- datasets[[2]]
+
+# Train a model
+model <- train(method = "Maxnet", data = train, fc = "l")
+
+# Prepare background locations to test autocorrelation, this usually gives a
+# warning message given that less than 10000 points can be randomly sampled
+bg_coords <- dismo::randomPoints(predictors, 10000)
+bg <- prepareSWD(species = "Virtual species", a = bg_coords,
+                 env = predictors, categorical = "biome")
+
+## Not run: 
+# Remove variables with correlation higher than 0.7 accounting for the AUC,
+# in the following example the variable importance is computed as permutation
+# importance
+vs <- varSel(model, metric = "auc", bg4cor = bg, test = test, cor_th = 0.7,
+             permut = 1)
+vs
+
+# Remove variables with correlation higher than 0.7 accounting for the TSS,
+# in the following example the variable importance is the MaxEnt percent
+# contribution
+# Train a model
+# The next line checks if Maxent is correctly configured but you don't need
+# to run it in your script
+if (dismo::maxent(silent = TRUE)) {
+model <- train(method = "Maxent", data = train, fc = "l")
+vs <- varSel(model, metric = "tss", bg4cor = bg, test = test, cor_th = 0.7,
+             use_pc = TRUE)
+vs
+
+# Remove variables with correlation higher than 0.7 accounting for the aicc,
+# in the following example the variable importance is the MaxEnt percent
+# contribution
+vs <- varSel(model, metric = "aicc", bg4cor = bg, cor_th = 0.7,
+             use_pc = TRUE, env = predictors)
+vs
+}
+
+## End(Not run)
+```
+
+

@@ -860,11 +860,20 @@ my.bg30k <- function(x){st_sample(x, size = 30000,
                                   by_polygon = F 
                                   )}
 
-my.bg100k <- function(x){st_sample(x, size = 1000000, 
+my.bg100k <- function(x){st_sample(x, size = 100000, 
                                   type = "random", 
                                   exact = T, 
                                   by_polygon = F 
-                                  )}
+)}
+
+
+
+cropbio.path_reptile <- list.files(path = "D:/bio_crop/reptile")
+cropbio_reptile <- list()
+for(i in 1:length(cropbio.path_reptile)){
+cropbio_reptile[[i]] <- raster::stack(paste0("D:/bio_crop/reptile/",cropbio.path_reptile[i]))}
+
+my.random_bg30k <- function(x,y){randomPoints(stackbio, n = length(x), p = x, ext = y, excludep = TRUE)}
 
 
 
@@ -897,6 +906,7 @@ my.pseperate <- function(x){dplyr::bind_cols(dplyr::slice(x@coords, 1:which(x@pa
 
 p.data.mammal <- map(data.mammal, my.pseperate)
 p.data.reptile <- map(data.reptile, my.pseperate)
+p.data.amphibian <- map(data.amphibian, my.pseperate)
 
 sf_df <- function(x){sf::st_as_sf(x, 
                                   coords = c("X", "Y"), 
@@ -909,6 +919,9 @@ sp_p_mammal <- map(sf_p_mammal, as_Spatial)
 
 sf_p_reptile <- map(p.data.reptile, sf_df)
 sp_p_reptile <- map(sf_p_reptile, as_Spatial)
+
+sf_p_amphibian <- map(p.data.amphibian, sf_df)
+sp_p_amphibian <- map(sf_p_amphibian, as_Spatial)
 
 mcp_20 <- mcp(sp_p_mammal[[20]])
 sf_mcp_20 <- sf::st_as_sf(mcp_20)
@@ -925,7 +938,7 @@ sp_bg10k_mammal <- map(bg10k_mammal, as_Spatial)
 
 
 ```{r}
-my.extract <- function(x){raster::extract(bio1, x)}
+my.extract <- function(x){raster::extract(stackbio, x)}
 
 bg10k_mammal.bio <- future_map(sp_bg10k_mammal, my.extract)
 
@@ -936,7 +949,7 @@ bg10k_mammal.bio <- future_map(sp_bg10k_mammal, my.extract)
 my.nacheck <- function(x){sum(is.na(x[,1]))}
 
 map_dbl(bg10k_mammal.bio, my.nacheck)
-
+map_dbl(bg10k_amphibian.bio, my.nacheck)
 ```
 ```{r}
 for (i in 1:length(bg10k_mammal)){
@@ -952,6 +965,8 @@ for(i in c(3, 5, 7, 11, 13, 15, 17, 30, 32, 35, 48, 52, 55, 56, 68, 75, 79, 87, 
   range.reptile[[i]] <- sf::st_as_sfc(mcp(sp_p_reptile[[i]]))
 }
 
+range.amphibian[[43]] <- sf::st_as_sfc(mcp(sp_p_amphibian[[43]]))
+
 ```
 
 
@@ -959,6 +974,15 @@ for(i in c(3, 5, 7, 11, 13, 15, 17, 30, 32, 35, 48, 52, 55, 56, 68, 75, 79, 87, 
 bg10k_reptile <- list()
 for(i in 37:length(range.reptile)){
   bg10k_reptile[[i]] <- my.bg10k(range.reptile[[i]])}
+
+bg30k_reptile <- list()
+for(i in 1:length(range.reptile)){
+  bg30k_reptile[[i]] <- my.bg30k(range.reptile[[i]])}
+
+bg100k_reptile <- furrr::future_map(range.reptile, my.bg30k, 
+                                    .options = furrr_options(seed = TRUE),
+                                    .progress = T)
+
 
 #12 is SEA TURTLE
 #36 got error so done in QGIS
@@ -975,6 +999,16 @@ bg10k_reptile[[12]] <- NULL
 sp_bg10k_reptile <- map(bg10k_reptile, as_Spatial)
 
 bg10k_reptile.bio <- future_map(sp_bg10k_reptile, my.extract)
+```
+
+```{r}
+bg10k_amphibian <- furrr::future_map(range.amphibian, my.bg10k, 
+                                    .options = furrr_options(seed = TRUE),
+                                    .progress = T)
+
+sp_bg10k_amphibian <- map(bg10k_amphibian, as_Spatial)
+
+bg10k_amphibian.bio <- furrr::future_map(sp_bg10k_amphibian, my.extract)
 ```
 
 
@@ -1082,6 +1116,32 @@ b.data.mammal[[i]]  <- tidyr::pivot_longer(b.data.mammal[[i]],
   write_csv(., paste0("D:/viz_rb/mammal/",data.mammal[[35]]@species,".csv"))
   
 }
+
+```
+
+```{r}
+data.mammal <- readr::read_rds("data/newdata/data.mammal.rds")
+data.reptile <- readr::read_rds("data/newdata/data.reptile.rds")
+data.amphibian <- readr::read_rds("data/newdata/data.amphibian.rds")
+```
+
+
+```{r}
+library(geosphere)
+
+my.aseperate <- function(x){dplyr::bind_cols(dplyr::slice(x@coords, which(x@pa==0)[1]:nrow(x@coords)),
+                                             dplyr::slice(x@data, which(x@pa==0)[1]:nrow(x@data)))}
+
+a.data.mammal <- map(data.mammal, my.aseperate)
+a.data.reptile <- map(data.reptile, my.aseperate)
+a.data.amphibian <- map(data.amphibian, my.aseperate)
+
+geodistm <- function(x){as.dist(geosphere::distm(x[,1:2], fun = distGeo))}
+
+a.geodistm.mammal <- furrr::future_map(a.data.mammal, geodistm)
+a.geodistm.reptile <- furrr::future_map(a.data.reptile, geodistm)
+a.geodistm.amphibian <- furrr::future_map(a.data.amphibian, geodistm)
+
 
 ```
 
@@ -1244,3 +1304,253 @@ cucconi.test <- function(x, y, method = c("permutation", "bootstrap")){
 ```
 
 
+# BG corrupted. NEW DATA. NEW MODEL.
+```{r}
+data.mammal <- readr::read_rds("data/data.mammal.rds")
+data.reptile <- readr::read_rds("data/data.reptile.rds") #reptile 12번 거북이가 실려있다. 후에 뺀다.
+data.amphibian <- readr::read_rds("data/data.amphibian.rds")
+
+```
+
+
+```{r}
+reaarange <- function(x){dplyr::select(x@data, c(1,12,13,14,15,16,17,18,19,2,3,4,5,6,7,8,9,10,11))}
+
+for (i in 1:length(data.mammal)){
+data.mammal[[i]]@data <- reaarange(data.mammal[[i]])
+}
+
+for (i in 1:length(data.reptile)){
+data.reptile[[i]]@data <- reaarange(data.reptile[[i]])
+}
+
+for (i in 1:length(data.amphibian)){
+data.amphibian[[i]]@data <- reaarange(data.amphibian[[i]])
+}
+
+for (i in 1:length(data.mammal)){
+names(data.mammal[[i]]@data) <- c("wc2.1_30s_bio_01", "wc2.1_30s_bio_02", "wc2.1_30s_bio_03", "wc2.1_30s_bio_04",
+                                  "wc2.1_30s_bio_05", "wc2.1_30s_bio_06", "wc2.1_30s_bio_07", "wc2.1_30s_bio_08",
+                                  "wc2.1_30s_bio_09", "wc2.1_30s_bio_10", "wc2.1_30s_bio_11", "wc2.1_30s_bio_12",
+                                  "wc2.1_30s_bio_13", "wc2.1_30s_bio_14", "wc2.1_30s_bio_15", "wc2.1_30s_bio_16",
+                                  "wc2.1_30s_bio_17", "wc2.1_30s_bio_18", "wc2.1_30s_bio_19")
+}
+
+for (i in 1:length(data.reptile)){
+names(data.reptile[[i]]@data) <- c("wc2.1_30s_bio_01", "wc2.1_30s_bio_02", "wc2.1_30s_bio_03", "wc2.1_30s_bio_04",
+                                   "wc2.1_30s_bio_05", "wc2.1_30s_bio_06", "wc2.1_30s_bio_07", "wc2.1_30s_bio_08",
+                                   "wc2.1_30s_bio_09", "wc2.1_30s_bio_10", "wc2.1_30s_bio_11", "wc2.1_30s_bio_12",
+                                   "wc2.1_30s_bio_13", "wc2.1_30s_bio_14", "wc2.1_30s_bio_15", "wc2.1_30s_bio_16",
+                                   "wc2.1_30s_bio_17", "wc2.1_30s_bio_18", "wc2.1_30s_bio_19")
+}
+
+for (i in 1:length(data.amphibian)){
+names(data.amphibian[[i]]@data) <- c("wc2.1_30s_bio_01", "wc2.1_30s_bio_02", "wc2.1_30s_bio_03", "wc2.1_30s_bio_04",
+                                     "wc2.1_30s_bio_05", "wc2.1_30s_bio_06", "wc2.1_30s_bio_07", "wc2.1_30s_bio_08",
+                                     "wc2.1_30s_bio_09", "wc2.1_30s_bio_10", "wc2.1_30s_bio_11", "wc2.1_30s_bio_12",
+                                     "wc2.1_30s_bio_13", "wc2.1_30s_bio_14", "wc2.1_30s_bio_15", "wc2.1_30s_bio_16",
+                                     "wc2.1_30s_bio_17", "wc2.1_30s_bio_18", "wc2.1_30s_bio_19")
+}
+```
+
+
+```{r}
+bg10kshp_mammal <- paste0("C:/Users/lophital/Documents/rsac_x_overfit/shp/sf_mammal/bg10k_mammal/",
+                          list.files(path = "C:/Users/lophital/Documents/rsac_x_overfit/shp/sf_mammal/bg10k_mammal",
+              pattern = "*.shp"))
+
+bg10k_mammal <- list()
+for(i in 1:length(data.mammal)){
+bg10k_mammal[[i]] <-  sf::read_sf(bg10kshp_mammal[i])
+}
+
+bg10kcoord_mammal <- map(bg10k_mammal, st_coordinates)
+bg10kcoord_mammal <- map(bg10kcoord_mammal, as.data.frame)
+```
+
+```{r}
+
+# bg10k_reptile sf로 살아있다!
+
+bg10kcoord_reptile <- map(bg10k_reptile, st_coordinates)
+bg10kcoord_reptile <- map(bg10kcoord_reptile, as.data.frame)
+```
+
+
+
+load new background
+```{r}
+bg10k_mammal.bio <- readr::read_rds("bg10k_mammal.bio.rds")
+bg10k_mammal.bio <- map(bg10k_mammal.bio, as.data.frame)
+for(i in 1:length(bg10k_mammal.bio)){
+  mutate(bg10k_mammal.bio[[i]],
+         X = bg10kcoord_mammal[[i]]$X,
+         Y = bg10kcoord_mammal[[i]]$Y) -> bg10k_mammal.bio[[i]]
+}
+bg10k_mammal.bio <- map(bg10k_mammal.bio, na.omit)
+```
+
+```{r}
+
+bg10k_reptile.bio <- map(bg10k_reptile.bio, as.data.frame)
+
+for(i in 1:length(bg10k_reptile.bio)){
+  mutate(bg10k_reptile.bio[[i]],
+         X = bg10kcoord_reptile[[i]]$X,
+         Y = bg10kcoord_reptile[[i]]$Y) -> bg10k_reptile.bio[[i]]
+}
+
+bg10k_reptile.bio <- map(bg10k_reptile.bio, na.omit)
+```
+
+```{r}
+bg10kcoord_amphibian <- map(bg10k_amphibian, st_coordinates)
+bg10kcoord_amphibian <- map(bg10kcoord_amphibian, as.data.frame)
+
+bg10k_amphibian.bio <- map(bg10k_amphibian.bio, as.data.frame)
+
+for(i in 1:length(bg10k_amphibian.bio)){
+  mutate(bg10k_amphibian.bio[[i]],
+         X = bg10kcoord_amphibian[[i]]$X,
+         Y = bg10kcoord_amphibian[[i]]$Y) -> bg10k_amphibian.bio[[i]]
+}
+
+bg10k_amphibian.bio <- map(bg10k_amphibian.bio, na.omit)
+```
+
+
+
+```{r}
+my.pseperate <- function(x){dplyr::bind_cols(dplyr::slice(x@coords, 1:which(x@pa==0)[1]-1),
+                                             dplyr::slice(x@data, 1:which(x@pa==0)[1]-1))}
+
+
+p.data.mammal <- map(data.mammal, my.pseperate)
+
+bg10kdata_mammal <- list()
+for(i in 1:length(p.data.mammal)){
+  bg10kdata_mammal[[i]] <- as.data.frame(
+   rbind(p.data.mammal[[i]][,3:21], bg10k_mammal.bio[[i]][,1:19]))}
+
+newcoord_mammal <- list()
+for(i in 1:length(p.data.mammal)){
+  newcoord_mammal[[i]] <-
+   rbind(p.data.mammal[[i]][,1:2], bg10k_mammal.bio[[i]][,20:21])}
+
+newpa_mammal <- list()
+for(i in 1:length(p.data.mammal)){
+newpa_mammal[[i]] <- c(rep(1, nrow(p.data.mammal[[i]])), 
+                       rep(0, nrow(bg10k_mammal.bio[[i]])))}
+
+
+for(i in 1:length(data.mammal)){
+data.mammal[[i]]@data <- bg10kdata_mammal[[i]]
+data.mammal[[i]]@coords <- newcoord_mammal[[i]]
+data.mammal[[i]]@pa <- newpa_mammal[[i]]
+}
+
+
+```
+
+```{r}
+my.pseperate <- function(x){dplyr::bind_cols(dplyr::slice(x@coords, 1:which(x@pa==0)[1]-1),
+                                             dplyr::slice(x@data, 1:which(x@pa==0)[1]-1))}
+
+data.reptile[[12]] <- NULL
+
+p.data.reptile <- map(data.reptile, my.pseperate)
+
+bg10kdata_reptile <- list()
+for(i in 1:length(p.data.reptile)){
+  bg10kdata_reptile[[i]] <- as.data.frame(
+   rbind(p.data.reptile[[i]][,3:21], bg10k_reptile.bio[[i]][,1:19]))}
+
+newcoord_reptile <- list()
+for(i in 1:length(p.data.reptile)){
+  newcoord_reptile[[i]] <-
+   rbind(p.data.reptile[[i]][,1:2], bg10k_reptile.bio[[i]][,20:21])}
+
+newpa_reptile <- list()
+for(i in 1:length(p.data.reptile)){
+newpa_reptile[[i]] <- c(rep(1, nrow(p.data.reptile[[i]])), 
+                       rep(0, nrow(bg10k_reptile.bio[[i]])))}
+
+
+for(i in 1:length(data.reptile)){
+data.reptile[[i]]@data <- bg10kdata_reptile[[i]]
+data.reptile[[i]]@coords <- newcoord_reptile[[i]]
+data.reptile[[i]]@pa <- newpa_reptile[[i]]
+}
+
+```
+
+```{r}
+my.pseperate <- function(x){dplyr::bind_cols(dplyr::slice(x@coords, 1:which(x@pa==0)[1]-1),
+                                             dplyr::slice(x@data, 1:which(x@pa==0)[1]-1))}
+
+
+
+p.data.amphibian <- map(data.amphibian, my.pseperate)
+
+bg10kdata_amphibian <- list()
+for(i in 1:length(p.data.amphibian)){
+  bg10kdata_amphibian[[i]] <- as.data.frame(
+   rbind(p.data.amphibian[[i]][,3:21], bg10k_amphibian.bio[[i]][,1:19]))}
+
+newcoord_amphibian <- list()
+for(i in 1:length(p.data.amphibian)){
+  newcoord_amphibian[[i]] <-
+   rbind(p.data.amphibian[[i]][,1:2], bg10k_amphibian.bio[[i]][,20:21])}
+
+newpa_amphibian <- list()
+for(i in 1:length(p.data.amphibian)){
+newpa_amphibian[[i]] <- c(rep(1, nrow(p.data.amphibian[[i]])), 
+                       rep(0, nrow(bg10k_amphibian.bio[[i]])))}
+
+
+for(i in 1:length(data.amphibian)){
+data.amphibian[[i]]@data <- bg10kdata_amphibian[[i]]
+data.amphibian[[i]]@coords <- newcoord_amphibian[[i]]
+data.amphibian[[i]]@pa <- newpa_amphibian[[i]]
+}
+
+```
+
+
+
+```{r}
+a <- vector()
+for(i in 1:length(data.reptile)){
+a[i] <- sum(data.reptile[[i]]@pa == 0)
+}
+
+a
+```
+```{r}
+a <- vector()
+for(i in 1:length(data.reptile)){
+a[i] <- sum(data.reptile[[i]]@pa == 0)
+}
+
+a
+```
+
+
+
+```{r}
+bg10k_mammal.xy <- list()
+for(i in 1:length(bg10k_mammal.bio)){
+bg10k_mammal.xy[[i]] <- bg10k_mammal.bio[[i]][,20:21]}
+
+my.swdmaker <- function(x,y,z){SDMtune::prepareSWD(
+  species = x@species, 
+  p = y[,1:2], 
+  a = z[,1:2], 
+  env = stackbio)}
+
+data.mammal <- furrr::future_map2(data.mammal, p.data.mammal, bg10k_mammal.xy,
+                                  my.swdmaker, 
+                                  .options = furrr_options(seed = TRUE), .progress = T)
+
+
+```

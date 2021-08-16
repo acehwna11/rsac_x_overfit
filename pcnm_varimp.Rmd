@@ -1,0 +1,561 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# is pcnm varaible importance high as sequence?
+
+```{r}
+library(tidyverse)
+library(SDMtune)
+library(blockCV)
+library(ENMeval)
+library(raster)
+library(sf)
+library(sp)
+library(zeallot)
+library(rJava)
+library(dismo)
+```
+```{r}
+library(furrr)
+future::plan(multisession, workers = 31)
+stopCluster(cl)
+```
+
+
+load models
+```{r}
+model_rndcv4k_reptile <- readr::read_rds("model/newmodel/model_rndcv4k_reptile.rds")
+model_spcv4k_reptile <- readr::read_rds("model/newmodel/model_spcv4k_reptile.rds")
+
+
+model_rndcv4k.pcnm_reptile <- readr::read_rds("model/newmodel/model_pcnm/model_rndcv4k_reptile.rds")
+model_spcv4k.pcnm_reptile <- readr::read_rds("model/newmodel/model_pcnm/model_spcv4k_reptile.rds")
+
+model_rndcv4k_amphibian <- readr::read_rds("model/newmodel/model_rndcv4k_amphibian.rds")
+model_spcv4k_amphibian <- readr::read_rds("model/newmodel/model_spcv4k_amphibian.rds")
+
+#PCNMs
+model_rndcv4k.pcnm_amphibian <- readr::read_rds("model/newmodel/model_pcnm/model_rndcv4k_amphibian.rds")
+model_spcv4k.pcnm_amphibian <- readr::read_rds("model/newmodel/model_pcnm/model_spcv4k_amphibian.rds")
+
+t.t.mammal_0.2 <- readr::read_rds("t.t/newt.t/t.t.mammal_0.2.rds")
+t.t.reptile_0.2 <- readr::read_rds("t.t/newt.t/t.t.reptile_0.2.rds")
+t.t.amphibian_0.2 <- readr::read_rds("t.t/newt.t/t.t.amphibian_0.2.rds")
+
+t.t.pcnm.reptile_0.2 <- readr::read_rds("t.t/newt.t/t.t.pcnm.reptile_0.2.rds")
+t.t.pcnm.amphibian_0.2 <- readr::read_rds("t.t/newt.t/t.t.pcnm.amphibian_0.2.rds")
+```
+
+
+varimp
+
+```{r}
+
+varimp_rndcv4k_reptile <- map(model_rndcv4k_reptile, varImp)
+varimp_rndcv4k_amphibian <- map(model_rndcv4k_amphibian, varImp)
+
+varimp_rndcv4k.pcnm_amphibian <- map(model_rndcv4k.pcnm_amphibian, varImp)
+varimp_rndcv4k.pcnm_reptile <- map(model_rndcv4k.pcnm_reptile, varImp)
+
+
+# maxent varimp
+maxentvarimp_rndcv4k.pcnm_reptile <- future_map(model_rndcv4k.pcnm_reptile, maxentVarImp, 
+                                                .options = furrr_options(seed = TRUE), .progress = T)
+write_rds(maxentvarimp_rndcv4k.pcnm_reptile, "maxentvarimp_rndcv4k.pcnm_reptile.rds")
+maxentvarimp_rndcv4k.pcnm_amphibian <- future_map(model_rndcv4k.pcnm_amphibian, maxentVarImp, 
+                                                .options = furrr_options(seed = TRUE), .progress = T)
+write_rds(maxentvarimp_rndcv4k.pcnm_amphibian, "maxentvarimp_rndcv4k.pcnm_amphibian.rds")
+maxentvarimp_spcv4k.pcnm_reptile <- future_map(model_spcv4k.pcnm_reptile, maxentVarImp,
+                                               .options = furrr_options(seed = TRUE), .progress =  T)
+write_rds(maxentvarimp_spcv4k.pcnm_reptile, "maxentvarimp_spcv4k.pcnm_reptile.rds")
+maxentvarimp_spcv4k.pcnm_amphibian <- future_map(model_spcv4k.pcnm_amphibian, maxentVarImp,
+                                               .options = furrr_options(seed = TRUE), .progress =  T)
+write_rds(maxentvarimp_spcv4k.pcnm_amphibian, "maxentvarimp_spcv4k.pcnm_amphibian.rds")
+# maxent varimp
+
+
+
+varimp_spcv4k_reptile <- map(model_spcv4k_reptile, varImp)
+varimp_spcv4k_amphibian <- map(model_spcv4k_amphibian, varImp)
+
+varimp_spcv4k.pcnm_amphibian <- map(model_spcv4k.pcnm_amphibian, varImp)
+varimp_spcv4k.pcnm_reptile <- map(model_spcv4k.pcnm_reptile, varImp)
+
+df.maxentvarimp_rndcv4k.pcnm_reptile <- list()
+for(i in 1:length(maxentvarimp_rndcv4k.pcnm_reptile)){
+df.maxentvarimp_rndcv4k.pcnm_reptile[[i]] <- mutate(maxentvarimp_rndcv4k.pcnm_reptile[[i]], 
+                                      taxa = "reptile", 
+                                      species = model_rndcv4k.pcnm_reptile[[i]]@data@species,
+                                      cv = "random")
+}
+
+df.maxentvarimp_rndcv4k.pcnm_amphibian <- list()
+for(i in 1:length(maxentvarimp_rndcv4k.pcnm_amphibian)){
+df.maxentvarimp_rndcv4k.pcnm_amphibian[[i]] <- mutate(maxentvarimp_rndcv4k.pcnm_amphibian[[i]],
+                                        taxa = "amphibian",
+                                        species = model_rndcv4k.pcnm_amphibian[[i]]@data@species,
+                                        cv = "random")
+}
+df.maxentvarimp_spcv4k.pcnm_reptile <- list()
+for(i in 1:length(maxentvarimp_spcv4k.pcnm_reptile)){
+df.maxentvarimp_spcv4k.pcnm_reptile[[i]] <- mutate(maxentvarimp_spcv4k.pcnm_reptile[[i]],
+                                        taxa = "reptile",
+                                        species = model_spcv4k.pcnm_reptile[[i]]@data@species,
+                                        cv = "spatial")
+}
+df.maxentvarimp_spcv4k.pcnm_amphibian <- list()
+for(i in 1:length(maxentvarimp_spcv4k.pcnm_amphibian)){
+df.maxentvarimp_spcv4k.pcnm_amphibian[[i]] <- mutate(maxentvarimp_spcv4k.pcnm_amphibian[[i]],
+                                        taxa = "amphibian",
+                                        species = model_spcv4k.pcnm_amphibian[[i]]@data@species,
+                                        cv = "spatial")
+}
+
+# not use below
+for(i in 1:length(varimp_spcv4k.pcnm_reptile)){
+varimp_spcv4k.pcnm_reptile[[i]] <- mutate(varimp_spcv4k.pcnm_reptile[[i]],
+                                           taxa = "reptile",
+                                           species = model_spcv4k.pcnm_reptile[[i]]@data@species,
+                                           cv = "random")
+}
+for(i in 1:length(varimp_spcv4k.pcnm_amphibian)){
+varimp_spcv4k.pcnm_amphibian[[i]] <- mutate(varimp_rndcv4k.pcnm_amphibian[[i]],
+                                        taxa = "amphibian",
+                                        species = model_rndcv4k.pcnm_amphibian[[i]]@data@species,
+                                        cv = "random")
+}
+for(i in 1:length(varimp_rndcv4k.pcnm_reptile)){
+varimp_rndcv4k.pcnm_reptile[[i]] <- mutate(varimp_rndcv4k.pcnm_reptile[[i]],
+                                           taxa = "reptile",
+                                           species = model_rndcv4k.pcnm_reptile[[i]]@data@species,
+                                           cv = "random")
+}
+for(i in 1:length(varimp_rndcv4k.pcnm_amphibian)){
+varimp_rndcv4k.pcnm_amphibian[[i]] <- mutate(varimp_rndcv4k.pcnm_amphibian[[i]],
+                                        taxa = "amphibian",
+                                        species = model_rndcv4k.pcnm_amphibian[[i]]@data@species,
+                                        cv = "random")
+}
+for(i in 1:length(varimp_spcv4k.pcnm_reptile)){
+varimp_spcv4k.pcnm_reptile[[i]] <- mutate(varimp_spcv4k.pcnm_reptile[[i]],
+                                           taxa = "reptile",
+                                           species = model_spcv4k.pcnm_reptile[[i]]@data@species,
+                                           cv = "spatial")
+}
+for(i in 1:length(varimp_spcv4k.pcnm_amphibian)){
+varimp_spcv4k.pcnm_amphibian[[i]] <- mutate(varimp_spcv4k.pcnm_amphibian[[i]],
+                                        taxa = "amphibian",
+                                        species = model_spcv4k.pcnm_amphibian[[i]]@data@species,
+                                        cv = "spatial")
+}
+for(i in 1:length(varimp_spcv4k.pcnm_reptile)){
+varimp_spcv4k.pcnm_reptile[[i]] <- mutate(varimp_spcv4k.pcnm_reptile[[i]],
+                                           taxa = "reptile",
+                                           species = model_spcv4k.pcnm_reptile[[i]]@data@species,
+                                           cv = "spatial")
+}
+for(i in 1:length(varimp_spcv4k.pcnm_amphibian)){
+varimp_spcv4k.pcnm_amphibian[[i]] <- mutate(varimp_spcv4k.pcnm_amphibian[[i]],
+                                        taxa = "amphibian",
+                                        species = model_spcv4k.pcnm_amphibian[[i]]@data@species,
+                                        cv = "spatial")
+}
+
+df.maxentvarimp_rndcv4k.pcnm_reptile <- do.call(rbind, df.maxentvarimp_rndcv4k.pcnm_reptile) 
+df.maxentvarimp_rndcv4k.pcnm_amphibian <- do.call(rbind, df.maxentvarimp_rndcv4k.pcnm_amphibian) 
+df.maxentvarimp_spcv4k.pcnm_reptile <- do.call(rbind, df.maxentvarimp_spcv4k.pcnm_reptile) 
+df.maxentvarimp_spcv4k.pcnm_amphibian <- do.call(rbind, df.maxentvarimp_spcv4k.pcnm_amphibian) 
+
+rbind(df.maxentvarimp_rndcv4k.pcnm_reptile,
+      df.maxentvarimp_rndcv4k.pcnm_amphibian,
+      df.maxentvarimp_spcv4k.pcnm_reptile,
+      df.maxentvarimp_spcv4k.pcnm_amphibian) -> df.VARIMP
+
+#this fucked up var name in bioclimates
+gsub("PCNM1","PCNM01",  df.VARIMP$Variable) -> df.VARIMP$Variable
+gsub("PCNM2","PCNM02",  df.VARIMP$Variable) -> df.VARIMP$Variable
+gsub("PCNM3","PCNM03",  df.VARIMP$Variable) -> df.VARIMP$Variable
+gsub("PCNM4","PCNM04",  df.VARIMP$Variable) -> df.VARIMP$Variable
+gsub("PCNM5","PCNM05",  df.VARIMP$Variable) -> df.VARIMP$Variable
+gsub("PCNM6","PCNM06",  df.VARIMP$Variable) -> df.VARIMP$Variable
+gsub("PCNM7","PCNM07",  df.VARIMP$Variable) -> df.VARIMP$Variable
+gsub("PCNM8","PCNM08",  df.VARIMP$Variable) -> df.VARIMP$Variable
+gsub("PCNM9","PCNM09",  df.VARIMP$Variable) -> df.VARIMP$Variable
+gsub("PCNM010","PCNM10",  df.VARIMP$Variable) -> df.VARIMP$Variable
+gsub("PCNM011","PCNM11",  df.VARIMP$Variable) -> df.VARIMP$Variable
+gsub("PCNM012","PCNM12",  df.VARIMP$Variable) -> df.VARIMP$Variable
+gsub("PCNM013","PCNM13",  df.VARIMP$Variable) -> df.VARIMP$Variable
+gsub("PCNM014","PCNM14",  df.VARIMP$Variable) -> df.VARIMP$Variable
+
+
+
+
+
+ggplot(df.VARIMP) + 
+  geom_boxplot(aes(x = Variable, y = Permutation_importance)) + 
+  theme_light() +
+  theme(strip.text.x = element_text(size = 9, colour = "black"),
+        axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),
+        strip.background = element_rect(colour="gray",
+                                        fill="white")) + 
+  labs(title="Permutation variable importance", 
+       subtitle="averaged decrease in training AUC",
+       x="Variable",
+       y="Variable Importance(normalized %)") -> plot.VARIMP_pt
+
+ggplot(df.VARIMP) + 
+  geom_boxplot(aes(x = Variable, y = Percent_contribution)) + 
+  theme_light() +
+  theme(strip.text.x = element_text(size = 9, colour = "black"),
+        axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),
+        strip.background = element_rect(colour="gray",
+                                        fill="white")) + 
+  labs(title="Percent contribution for variable importance", 
+       subtitle="Based on regularized gain from each coefficient modifying iteration",
+       x="Variable",
+       y="Variable Importance") -> plot.VARIMP_pc
+
+```
+
+
+35 each
+
+```{r}
+pcnm.p.ncol <- vector()
+for(i in 1:35){
+  ncol(pcnm.p[[i]]$vectors) -> pcnm.p.ncol[i]
+}
+
+pcnm.a.ncol <- vector()
+for(i in 1:35){
+  ncol(pcnm.a[[i]]$vectors) -> pcnm.a.ncol[i]
+}
+
+which(pcnm.a.ncol < 50) #21
+which(pcnm.p.ncol < 50) #11, 25, 31
+
+pcnm.a[c(11, 21, 25, 31)] <- NULL
+pcnm.p[c(11, 21, 25, 31)] <- NULL
+#total 31pcs
+```
+
+
+makes them together
+```{r}
+pcnm.df <- list()
+for(i in 1:31){
+as.data.frame(rbind(pcnm.p[[i]]$vectors[,1:50],
+                    pcnm.a[[i]]$vectors[,1:50])) -> pcnm.df[[i]]}
+```
+
+put them as variable
+load data
+
+```{r}
+data <- readr::read_rds("data/newdata/data.amphibian.rds")
+data[c(5,9,10,23,25,26,27,29,31,33,34,42,44,45,49)] <- NULL # make 35 same as pcnm
+data[c(11, 21, 25, 31)] <- NULL
+```
+
+
+conduct PCA to cut climate variable into 3
+
+```{r}
+library(FactoMineR)
+
+PCA_amphibian <- list()
+for (i in 1:length(data)){
+  PCA_amphibian[[i]] <- PCA(data[[i]]@data)
+} 
+```
+
+
+
+
+make PCA123 to find best 3
+```{r}
+PCA123_amphibian <- list()
+for(i in 1:length(PCA_amphibian)){
+  PCA123_amphibian[[i]] <- c(names(tail(sort(PCA_amphibian[[i]]$var$cos2[,1]), 1)),
+                       names(tail(sort(PCA_amphibian[[i]]$var$cos2[,2]), 1)),
+                       names(tail(sort(PCA_amphibian[[i]]$var$cos2[,3]), 1)))}
+```
+
+
+put them inside of data
+```{r}
+for(i in 1:31){
+data[[i]]@data %>% dplyr:::select(PCA123_amphibian[[i]]) %>% cbind(pcnm.df[[i]]) -> data[[i]]@data}
+```
+
+
+cut test
+```{r}
+t.t <- list()
+for (i in 1:31){
+  t.t[[i]] <- trainValTest(data[[i]], 
+                                         test = 0.2, 
+                                         only_presence = TRUE, 
+                                         seed = 1)}
+```
+
+
+make rnd fold
+```{r}
+rnd4k <- function(x){randomFolds(x[[1]], 
+                                 k = 4,
+                                 only_presence = TRUE,
+                                 seed = 1)}
+
+folds.rnd4k_amphibian.test <- map(t.t, rnd4k)
+```
+
+
+do model
+```{r}
+maxnet.train <- function(x, y){SDMtune::train("Maxnet",
+                                               data = x[[1]],
+                                               folds = y)}
+
+model_rndcv4k_amphibian <- future_map2(t.t, 
+                                    folds.rnd4k_amphibian.test, 
+                                    maxnet.train, 
+                                    .options = furrr_options(seed = TRUE),
+                                    .progress = T)
+```
+
+fix glm error
+```{r}
+maxnet.train(t.t[[10]], folds.rnd4k_amphibian.test[[10]]) #error
+```
+```{r}
+SDMtune::addSamplesToBg(t.t[[10]][[1]])
+
+SDMtune::train("Maxnet",
+               data = SDMtune::addSamplesToBg(t.t[[10]][[1]]),
+              folds = folds.rnd4k_amphibian.test[[10]]) #still error
+```
+```{r}
+SDMtune::addSamplesToBg(data[[10]]) %>% trainValTest(., 
+                                         test = 0.2, 
+                                         only_presence = TRUE, 
+                                         seed = 1) -> t.t.2
+
+
+rnd4k(t.t.2) -> fold2
+
+maxnet.train(t.t.2, fold2) # works!!!
+```
+DO MODEL AGAIN
+```{r}
+data2 <- map(data, addSamplesToBg)
+t.t2 <- list()
+for (i in 1:31){
+  t.t2[[i]] <- trainValTest(data2[[i]], 
+                                         test = 0.2, 
+                                         only_presence = TRUE, 
+                                         seed = 1)}
+fold2 <- map(t.t2, rnd4k)
+
+
+```
+
+```{r}
+model_rndcv4k_amphibian <- future_map2(t.t2, 
+                                    fold2, 
+                                    maxnet.train, 
+                                    .options = furrr_options(seed = TRUE),
+                                    .progress = T)
+```
+
+
+
+
+check variable importance
+```{r}
+varimp <- future_map(model_rndcv4k_amphibian, varImp)
+
+varimp.df <- data.frame(matrix(ncol = 62, nrow = 19))
+cbind(varimp[[1]][1:19,1:2],
+      varimp[[2]][1:19,1:2],
+      varimp[[3]][1:19,1:2],
+      varimp[[4]][1:19,1:2],
+      varimp[[5]][1:19,1:2],
+      varimp[[6]][1:19,1:2],
+      varimp[[7]][1:19,1:2],
+      varimp[[8]][1:19,1:2],
+      varimp[[9]][1:19,1:2],
+      varimp[[10]][1:19,1:2],
+      varimp[[11]][1:19,1:2],
+      varimp[[12]][1:19,1:2],
+      varimp[[13]][1:19,1:2],
+      varimp[[14]][1:19,1:2],
+      varimp[[15]][1:19,1:2],
+      varimp[[16]][1:19,1:2],
+      varimp[[17]][1:19,1:2],
+      varimp[[18]][1:19,1:2],
+      varimp[[19]][1:19,1:2],
+      varimp[[20]][1:19,1:2],
+      varimp[[21]][1:19,1:2],
+      varimp[[22]][1:19,1:2],
+      varimp[[23]][1:19,1:2],
+      varimp[[24]][1:19,1:2],
+      varimp[[25]][1:19,1:2],
+      varimp[[26]][1:19,1:2],
+      varimp[[27]][1:19,1:2],
+      varimp[[28]][1:19,1:2],
+      varimp[[29]][1:19,1:2],
+      varimp[[30]][1:19,1:2],
+      varimp[[31]][1:19,1:2]) -> varimp.df
+
+View(varimp.df)
+varimp.df
+```
+even there is more than 50 PCNM variables, they do not actively contribute Model performance
+Most of important PCNM variables were from 1:10. 
+and among 1:10, PCNM 1,2,3 effect alot.
+maybe because of clustering?
+
+Try with all climate variables.
+load old climate 19 datas
+```{r}
+climatedata <- readr::read_rds("data/newdata/data.amphibian.rds")
+climatedata[c(5,9,10,23,25,26,27,29,31,33,34,42,44,45,49)] <- NULL # make 35 same as pcnm
+climatedata[c(11, 21, 25, 31)] <- NULL
+
+for(i in 1:31){
+climatedata[[i]]@data %>% dplyr:::select(., 1:19) %>% cbind(pcnm.df[[i]]) -> climatedata[[i]]@data}
+                                        #all variables with 50 PCNM
+
+```
+
+
+add to sample bg for glm error
+```{r}
+data3 <- map(climatedata, addSamplesToBg)
+t.t3 <- list()
+for (i in 1:31){
+  t.t3[[i]] <- trainValTest(data3[[i]], 
+                           test = 0.2, 
+                           only_presence = TRUE, 
+                           seed = 1)}
+fold3 <- map(t.t3, rnd4k)
+
+
+```
+
+```{r}
+model_rndcv4k_amphibian <- future_map2(t.t3, 
+                                    fold3, 
+                                    maxnet.train, 
+                                    .options = furrr_options(seed = TRUE),
+                                    .progress = T)
+```
+
+go for 2nd varimp
+```{r}
+varimp2 <- future_map(model_rndcv4k_amphibian, varImp)
+
+varimp.df2 <- data.frame(matrix(ncol = 62, nrow = 19))
+cbind(varimp2[[1]][1:19,1:2],
+      varimp2[[2]][1:19,1:2],
+      varimp2[[3]][1:19,1:2],
+      varimp2[[4]][1:19,1:2],
+      varimp2[[5]][1:19,1:2],
+      varimp2[[6]][1:19,1:2],
+      varimp2[[7]][1:19,1:2],
+      varimp2[[8]][1:19,1:2],
+      varimp2[[9]][1:19,1:2],
+      varimp2[[10]][1:19,1:2],
+      varimp2[[11]][1:19,1:2],
+      varimp2[[12]][1:19,1:2],
+      varimp2[[13]][1:19,1:2],
+      varimp2[[14]][1:19,1:2],
+      varimp2[[15]][1:19,1:2],
+      varimp2[[16]][1:19,1:2],
+      varimp2[[17]][1:19,1:2],
+      varimp2[[18]][1:19,1:2],
+      varimp2[[19]][1:19,1:2],
+      varimp2[[20]][1:19,1:2],
+      varimp2[[21]][1:19,1:2],
+      varimp2[[22]][1:19,1:2],
+      varimp2[[23]][1:19,1:2],
+      varimp2[[24]][1:19,1:2],
+      varimp2[[25]][1:19,1:2],
+      varimp2[[26]][1:19,1:2],
+      varimp2[[27]][1:19,1:2],
+      varimp2[[28]][1:19,1:2],
+      varimp2[[29]][1:19,1:2],
+      varimp2[[30]][1:19,1:2],
+      varimp2[[31]][1:19,1:2]) -> varimp.df2
+
+View(varimp.df2)
+varimp.df2
+```
+
+mostly PCNM 1 take everything... 
+
+what will happen if PCNM 1 is excluded?
+
+```{r}
+
+t.t3wo1 <- t.t3
+for(i in 1:length(t.t3)){
+  t.t3wo1[[i]][[1]]@data <- t.t3[[i]][[1]]@data[,-20] 
+}
+
+model_wo1 <- future_map2(t.t3wo1, 
+                                    fold3, 
+                                    maxnet.train, 
+                                    .options = furrr_options(seed = TRUE),
+                                    .progress = T)
+```
+
+go for 3rd varimp
+```{r}
+varimp3 <- future_map(model_wo1, varImp)
+
+varimp.df3 <- data.frame(matrix(ncol = 62, nrow = 19))
+cbind(varimp3[[1]][1:19,1:2],
+      varimp3[[2]][1:19,1:2],
+      varimp3[[3]][1:19,1:2],
+      varimp3[[4]][1:19,1:2],
+      varimp3[[5]][1:19,1:2],
+      varimp3[[6]][1:19,1:2],
+      varimp3[[7]][1:19,1:2],
+      varimp3[[8]][1:19,1:2],
+      varimp3[[9]][1:19,1:2],
+      varimp3[[10]][1:19,1:2],
+      varimp3[[11]][1:19,1:2],
+      varimp3[[12]][1:19,1:2],
+      varimp3[[13]][1:19,1:2],
+      varimp3[[14]][1:19,1:2],
+      varimp3[[15]][1:19,1:2],
+      varimp3[[16]][1:19,1:2],
+      varimp3[[17]][1:19,1:2],
+      varimp3[[18]][1:19,1:2],
+      varimp3[[19]][1:19,1:2],
+      varimp3[[20]][1:19,1:2],
+      varimp3[[21]][1:19,1:2],
+      varimp3[[22]][1:19,1:2],
+      varimp3[[23]][1:19,1:2],
+      varimp3[[24]][1:19,1:2],
+      varimp3[[25]][1:19,1:2],
+      varimp3[[26]][1:19,1:2],
+      varimp3[[27]][1:19,1:2],
+      varimp3[[28]][1:19,1:2],
+      varimp3[[29]][1:19,1:2],
+      varimp3[[30]][1:19,1:2],
+      varimp3[[31]][1:19,1:2]) -> varimp.df3
+
+View(varimp.df3)
+varimp.df3
+```
+

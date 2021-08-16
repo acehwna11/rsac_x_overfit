@@ -1,0 +1,314 @@
+---
+title: "6_xAI"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# xAI
+
+
+
+```{r}
+library(DALEX)
+devtools::install_github("ModelOriented/localModel")
+
+
+
+
+
+predict.test <- function(x,y){
+  SDMtune::predict(x,
+                   data = y,
+                   fun = "mean",
+                   type = "cloglog")
+}
+
+train_rndcv4k.pcnm_reptile <- list()
+for(i in 29:length(model_rndcv4k.pcnm_reptile)){#28 got error idk whatever. make new fake model.
+train_rndcv4k.pcnm_reptile[[i]] <- list(SDMtune::predict(model_rndcv4k.pcnm_reptile[[i]], 
+                                                        t.t.pcnm.reptile_0.2[[i]][[1]],
+                                                        fun = "mean",
+                                                        type = "cloglog"))}
+
+model_rndcv4k.pcnm_reptile.retard28 <- model_rndcv4k.pcnm_reptile[-28]
+t.t.pcnm.reptile_0.2.retard28 <- t.t.pcnm.reptile_0.2[-28]
+train_rndcv4k.pcnm_reptile <- train_rndcv4k.pcnm_reptile[-28]
+
+explain.rndcv4k.pcnm_reptile <- list()
+for(i in 1:length(model_rndcv4k.pcnm_reptile.retard28)){
+explain.rndcv4k.pcnm_reptile[[i]]  <- DALEX::explain(model = model_rndcv4k.pcnm_reptile.retard28[[i]],  
+                                                      data = t.t.pcnm.reptile_0.2.retard28[[i]][[1]]@data, #dataset used for training
+                                                         y = train_rndcv4k.pcnm_reptile[[i]], # response from data
+                                          predict_function =  predict.test,
+                                                     label = "Maxnet")
+}
+
+
+
+localModel.rndcv4k.pcnm_reptile <- list()
+for(i in 1:length(explain.rndcv4k.pcnm_reptile)){
+localModel.rndcv4k.pcnm_reptile[[i]] <- predict_surrogate(explainer = explain.rndcv4k.pcnm_reptile[[i]], 
+                                                    new_observation = t.t.pcnm.reptile_0.2.retard28[[i]][[2]]@data,
+                                                    n_features = 8, 
+                                                    n_permutations = 1000,
+                                                    type = "localModel")}
+
+
+
+
+
+
+
+
+library("DALEXtra")
+library("lime")
+library("localModel")
+model_type.dalex_explainer <- DALEXtra::model_type.dalex_explainer
+predict_model.dalex_explainer <- DALEXtra::predict_model.dalex_explainer
+
+a1_ex <- predict_surrogate(explainer = a1, 
+                  new_observation = t.t.pcnm.reptile_0.2[[1]][[2]]@data[,],
+                  n_features = 8, 
+                  n_permutations = 1000,
+                  type = "lime")
+
+plot_interpretable_feature(a2_ex, "wc2.1_30s_bio_02 ")
+
+
+plot(a1_ex[1:100,])
+
+
+filter(a1_ex, case ==c(1329:15453)) -> a1_ex.back
+filter(a1_ex.back, feature_weight > 0.1) -> a1_ex.back
+
+
+DALEX::sha
+
+
+
+
+
+a2_ex <- predict_surrogate(explainer = a1, 
+                  new_observation = t.t.pcnm.reptile_0.2[[1]][[2]]@data,
+                  n_features = 5, 
+                  n_permutations = 10000,
+                  type = "localModel")
+
+b1 <- as_regressor(model_rndcv4k.pcnm_reptile[[1]])
+
+
+
+localModel::
+
+plot_interpretable_feature(a2_ex, "wc2.1_30s_bio_15")
+
+lime::text_explanations_output(a2_ex, "wc2.1_30s_bio_15")
+
+```
+
+```{r}
+DALEX::variable_effect()
+  pdp_glm  <- variable_response(explainer_glm, variable =  "Age", type = "pdp")
+```
+
+
+
+```{r}
+
+```
+
+
+
+```{r}
+devtools::install_github("boyanangelov/sdmexplain")
+devtools::install_github("boyanangelov/sdmbench")
+
+```
+
+라임에서 다른 모형을 가져오려면 prediction을 가져와야 한다.
+그리고 그게 회귄지 분륜지도 알려줘야한다.
+분류는 predict_model() 제네릭을 콜링하고
+후자는 model_type 제네릭에 모형이 응답해야한다.
+
+
+```{r}
+occ_data_raw <- sdmbench::get_benchmarking_data("Lynx lynx")
+occ_data <- occ_data_raw$df_data
+occ_data$label <- as.factor(occ_data$label)
+
+coordinates.df <- rbind(occ_data_raw$raster_data$coords_presence,
+                        occ_data_raw$raster_data$background)
+occ_data <- cbind(occ_data, coordinates.df)
+
+train_test_split <- rsample::initial_split(occ_data, prop = 0.7)
+data.train <- rsample::training(train_test_split)
+data.test  <- rsample::testing(train_test_split)
+
+train.coords <- dplyr::select(data.train, c("x", "y"))
+data.train$x <- NULL
+data.train$y <- NULL
+
+test.coords <- dplyr::select(data.test, c("x", "y"))
+data.test$x <- NULL
+data.test$y <- NULL
+
+task <- makeClassifTask(id = "model", data = data.train, target = "label")
+lrn <- makeLearner("classif.lda", predict.type = "prob")
+mod <- train(lrn, task)
+
+explainable_data <- prepare_explainable_data(data.test, mod, test.coords)
+
+processed_plots <- process_lime_plots(explainable_data$explanation)
+
+plot_explainable_sdm(explainable_data$processed_data,
+                     explainable_data$processed_plots)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+library(iml)
+library(lime)
+library(breakDown)
+```
+# lime
+
+to bring maxent to lime, need to predict first.
+
+```{r}
+lime::predict_model(x = lime::as_regressor(model_rndcv4k_mammal[[1]]),
+                    newdata = t.t.mammal_0.2[[1]][[2]],
+                    type = 'raw')
+
+```
+```{r}
+# Example of adding support for lda models (already available in lime)
+predict_model.lda <- function(x, newdata, type, ...) {
+  res <- predict(x, newdata = newdata, ...)
+  switch(
+    type,
+    raw = data.frame(Response = res$class, stringsAsFactors = FALSE),
+    prob = as.data.frame(res$posterior, check.names = FALSE)
+  )
+}
+
+model_type.maxnet <- function(x, y){SDMtune::train("Maxnet",
+                                               data = x[[1]],
+                                               folds = y)} 'regression'
+```
+
+
+
+```{r}
+save.me <- vector()
+
+```
+
+```{r}
+train.mammal.1 <- t.t.mammal_0.2[[1]][[1]]@data
+train.mammal.1 %>% mutate(prediction = 1) -> train.mammal.1
+
+
+```
+
+
+```{r}
+maxnet_exp <- DALEX::explain(model = model_rndcv4k_mammal[[1]],  
+                        data = t.t.mammal_0.2[[1]][[2]]@data,
+                           y = train.mammal.1$prediction, 
+                       label = "Maxnet")
+
+lime_   <- DALEX::predict_parts(explainer = maxnet_exp, 
+                  new_observation = t.t.mammal_0.2[[1]][[2]]@data, 
+                  B = 19,
+                  type = "shap")
+
+predict <- SDMtune::predict
+
+pdp_rf <- model_profile(explainer = maxnet_exp, variables = "wc2.1_30s_bio_01")
+
+test <- vector()
+for(i in 1:19){
+vector[i] <- loss_root_mean_square(observed = train.mammal.1$wc2.1_30s_bio_02, 
+                   predicted = predict(model_rndcv4k_mammal[[1]], t.t.mammal_0.2[[1]][[2]]@data))}
+
+```
+
+
+
+and let lime know it is regression model.
+
+```{r}
+
+# Example of adding support for lda models (already available in lime)
+predict_model.maxnet <- function (method, data, folds = NULL, verbose = TRUE, ...) 
+{
+  l <- length(method)
+  output <- vector("list", length = l)
+  for (i in 1:l) {
+    m <- match.arg(method[i], c("Maxent", "Maxnet", "ANN", 
+      "RF", "BRT"))
+    func <- paste0("train", m)
+    ea <- list(...)
+    if (is.null(folds)) {
+      argus <- c(data = data, ea[names(ea) %in% .args_name(func)])
+      output[[i]] <- do.call(func, args = argus)
+    }
+    else {
+      folds <- .convert_folds(folds, data)
+      k <- ncol(folds[[1]])
+      if (verbose) {
+        pb <- progress::progress_bar$new(format = "Cross Validation [:bar] :percent in :elapsedfull", 
+          total = k, clear = FALSE, width = 60, show_after = 0)
+        pb$tick(0)
+      }
+      models <- vector("list", length = k)
+      for (j in 1:k) {
+        train <- .subset_swd(data, folds$train[, j])
+        argus <- c(data = train, ea[names(ea) %in% .args_name(func)])
+        models[[j]] <- do.call(func, args = argus)
+        if (verbose) 
+          pb$tick(1)
+      }
+      output[[i]] <- SDMmodelCV(models = models, data = data, 
+        folds = folds)
+    }
+  }
+  if (l == 1) {
+    return(output[[1]])
+  }
+  else {
+    names(output) <- method
+    return(output)
+  }
+}
+
+
+model_type.maxnet <- function(x, ...) 'regression'
+
+
+lime::model_type('regression')
+
+```
+
+```{r}
+explainer <- lime(t.t.mammal_0.2[[1]][[1]]@data, 
+                  model_rndcv4k_mammal[[1]],
+                  bin_continuous = TRUE, quantile_bins = FALSE)
+
+explanation <- explain(t.t.mammal_0.2[[1]][[2]], explainer, n_features = 19)
+
+```
+

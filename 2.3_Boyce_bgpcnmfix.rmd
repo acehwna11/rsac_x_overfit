@@ -1,0 +1,3201 @@
+---
+title: "2.3_Boyce"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Boyce Index
+
+
+
+```{r}
+library(tidyverse)
+library(SDMtune)
+library(blockCV)
+library(ENMeval)
+library(raster)
+library(sf)
+library(sp)
+library(zeallot)
+library(rJava)
+library(dismo)
+library(ecospat)
+```
+
+load bioclimate models
+```{r}
+data.mammal <- readr::read_rds("data/newdata/data.mammal.rds")
+data.reptile <- readr::read_rds("data/newdata/data.reptile.rds")
+data.amphibian <- readr::read_rds("data/newdata/data.amphibian.rds")
+
+#bios
+model_rndcv4k_mammal <- readr::read_rds("model/newmodel/model_rndcv4k_mammal.rds")
+model_spcv4k_mammal <- readr::read_rds("model/newmodel/model_spcv4k_mammal.rds")
+
+
+model_rndcv4k_reptile <- readr::read_rds("model/newmodel/model_rndcv4k_reptile.rds")
+model_spcv4k_reptile <- readr::read_rds("model/newmodel/model_spcv4k_reptile.rds")
+
+
+model_rndcv4k.pcnm_reptile <- readr::read_rds("model/newmodel/model_pcnm/model_rndcv4k_reptile.rds")
+model_spcv4k.pcnm_reptile <- readr::read_rds("model/newmodel/model_pcnm/model_spcv4k_reptile.rds")
+
+model_rndcv4k_amphibian <- readr::read_rds("model/newmodel/model_rndcv4k_amphibian.rds")
+model_spcv4k_amphibian <- readr::read_rds("model/newmodel/model_spcv4k_amphibian.rds")
+
+#PCNMs
+model_rndcv4k.pcnm_amphibian <- readr::read_rds("model/newmodel/model_pcnm/model_rndcv4k_amphibian.rds")
+model_spcv4k.pcnm_amphibian <- readr::read_rds("model/newmodel/model_pcnm/model_spcv4k_amphibian.rds")
+
+t.t.mammal_0.2 <- readr::read_rds("t.t/newt.t/t.t.mammal_0.2.rds")
+t.t.reptile_0.2 <- readr::read_rds("t.t/newt.t/t.t.reptile_0.2.rds")
+t.t.amphibian_0.2 <- readr::read_rds("t.t/newt.t/t.t.amphibian_0.2.rds")
+
+t.t.pcnm.reptile_0.2 <- readr::read_rds("t.t/newt.t/t.t.pcnm.reptile_0.2.rds")
+t.t.pcnm.amphibian_0.2 <- readr::read_rds("t.t/newt.t/t.t.pcnm.amphibian_0.2.rds")
+
+#grid 
+grid.rnd_reptile <- readr::read_rds("D:/grid.rnd_reptile.rds")
+grid.rnd_amphibian <- readr::read_rds("D:/grid.rnd_amphibian.rds")
+grid.sp_reptile <- readr::read_rds("D:/grid.sp_reptile.rds")
+grid.sp_amphibian <- readr::read_rds("D:/grid.sp_amphibian.rds")
+
+
+
+
+grid.rnd.pcnm_reptile <- readr::read_rds("D:/grid.rnd.pcnm_reptile.rds")
+grid.rnd.pcnm_amphibian <- readr::read_rds("D:/grid.rnd.pcnm_amphibian.rds")
+grid.sp.pcnm_reptile <- readr::read_rds("D:/grid.sp.pcnm_reptile.rds")
+grid.sp.pcnm_amphibian <- readr::read_rds("D:/grid.sp.pcnm_amphibian.rds")
+
+a <- vector()
+for(i in 1:length(grid.rnd.pcnm_reptile)){a[i] <- nrow(grid.rnd.pcnm_reptile[[i]]@models[[1]]@data@data)}
+b <- vector()
+for(i in 1:length(grid.rnd.pcnm_amphibian)){b[i] <- nrow(grid.rnd.pcnm_amphibian[[i]]@models[[1]]@data@data)}
+
+folds.sp4k_amphibian <- readr::read_rds("folds/folds.sp4k_amphibian.rds")
+SARange_amphibian <- readr::read_rds("SARange/SARange_amphibian.rds")
+
+```
+
+because original plot is highly exagrated.
+
+let's check reg 5. the middle one.
+
+```{r}
+
+######bio
+model_rndcv4k_reptile <- list()
+for(i in 1:length(grid.rnd_reptile)){
+model_rndcv4k_reptile[[i]] <- grid.rnd_reptile[[i]]@models[[1]]  
+}
+
+model_rndcv4k_amphibian <- list()
+for(i in 1:length(grid.rnd_amphibian)){
+model_rndcv4k_amphibian[[i]] <- grid.rnd_amphibian[[i]]@models[[1]]  
+}
+
+model_spcv4k_reptile <- list()
+for(i in 1:length(grid.sp_reptile)){
+model_spcv4k_reptile[[i]] <- grid.sp_reptile[[i]]@models[[1]]  
+}
+
+model_spcv4k_amphibian <- list()
+for(i in 1:length(grid.sp_amphibian)){
+model_spcv4k_amphibian[[i]] <- grid.sp_amphibian[[i]]@models[[1]]  
+}
+## PCNM
+model_rndcv4k.pcnm_reptile <- list()
+for(i in 1:length(grid.rnd.pcnm_reptile)){
+model_rndcv4k.pcnm_reptile[[i]] <- grid.rnd.pcnm_reptile[[i]]@models[[1]]  
+}
+
+model_rndcv4k.pcnm_amphibian <- list()
+for(i in 1:length(grid.rnd.pcnm_amphibian)){
+model_rndcv4k.pcnm_amphibian[[i]] <- grid.rnd.pcnm_amphibian[[i]]@models[[1]]  
+}
+
+model_spcv4k.pcnm_reptile <- list()
+for(i in 1:length(grid.sp.pcnm_reptile)){
+model_spcv4k.pcnm_reptile[[i]] <- grid.sp.pcnm_reptile[[i]]@models[[1]]  
+}
+
+model_spcv4k.pcnm_amphibian <- list()
+for(i in 1:length(grid.sp.pcnm_amphibian)){
+model_spcv4k.pcnm_amphibian[[i]] <- grid.sp.pcnm_amphibian[[i]]@models[[1]]  
+}
+
+
+```
+
+
+
+
+
+
+```{r}
+model_rndcv4k.pcnm_amphibian <- readr::read_rds("model/pcnmmodel/model_rndcv4k_amphibian.rds")
+```
+
+```{r 91 vs 93 reptile}
+a <- vector()
+for(i in 1:length(model_rndcv4k_reptile)){a[i] <- model_rndcv4k_reptile[[i]]@data@species }
+a
+
+a[c(47,77)]
+
+b <- vector()
+for(i in 1:length(t.t.reptile_0.2)){b[i] <- t.t.reptile_0.2[[i]][[1]]@species}
+b
+
+model_rndcv4k_reptile <- model_rndcv4k_reptile[-c(47,77)]
+```
+
+
+```{r}
+#cut data.amphibian 
+data.amphibian[c(5,9,10,23,25,26,27,29,31,33,34,42,44,45,49)] <- NULL
+#and 9 for glm error 
+data.amphibian[[9]] <- NULL
+```
+
+
+
+```{r}
+source("plots.R")
+```
+
+
+```{r}
+boyce_mammal <- readr::read_rds("boyce/boyce_mammal.rds")
+```
+
+
+```{r}
+model_spcv4k.pcnm_amphibian <- readr::read_rds("model/pcnmmodel/fwd/model_spcv4k_amphibian.rds")
+data.amphibian[c(5,9,10,23,25,26,27,29,31,33,34,42,44,45,49)] <- NULL
+data.amphibian[c(11, 21, 25)] <- NULL
+data.amphibian <- data.amphibian[-10] 
+data.amphibian <- data.amphibian[-22] 
+data.amphibian.pcnm <- data.amphibian
+```
+
+```{r}
+t.t.amphibian_0.2.pcnm <- list()
+for (i in 1:length(data.amphibian.pcnm)){
+  t.t.amphibian_0.2.pcnm[[i]] <- trainValTest(data.amphibian.pcnm[[i]], 
+                                         test = 0.2, 
+                                         only_presence = TRUE, 
+                                         seed = 1)}
+```
+
+
+
+test_rndcv 
+```{r test_rndcv mean}
+#MAMMAL
+test_rndcv4k_mammal <- list()
+for(i in 1:length(model_rndcv4k_mammal)){
+test_rndcv4k_mammal[[i]] <- list(SDMtune::predict(model_rndcv4k_mammal[[i]], 
+                                                  t.t.mammal_0.2[[i]][[2]],
+                                                  fun = "mean",
+                                                  type = "cloglog"),
+                                 SDMtune::predict(model_rndcv4k_mammal[[i]],
+                                 t.t.mammal_0.2[[i]][[2]]@data[t.t.mammal_0.2[[i]][[2]]@pa == 1,],
+                                                   fun = "mean",
+                                                   type = "cloglog"))} #전부다는 [[1]]에, 출현은 [[2]]에
+```
+
+```{r test_rndcv mean}
+#REPTILE RND
+test_rndcv4k_reptile <- list()
+for(i in 1:length(model_rndcv4k_reptile)){
+test_rndcv4k_reptile[[i]] <- list(SDMtune::predict(model_rndcv4k_reptile[[i]], 
+                                                  t.t.reptile_0.2[[i]][[2]],
+                                                  fun = "mean",
+                                                  type = "cloglog"),
+                                 SDMtune::predict(model_rndcv4k_reptile[[i]],
+                                 t.t.reptile_0.2[[i]][[2]]@data[t.t.reptile_0.2[[i]][[2]]@pa == 1,],
+                                                   fun = "mean",
+                                                   type = "cloglog"))
+                                } #전부다는 [[1]]에, 출현은 [[2]]에
+```
+
+```{r test_rndcv mean}
+#AMPHIBIAN RND
+test_rndcv4k_amphibian <- list()
+for(i in 1:length(model_rndcv4k_amphibian)){
+test_rndcv4k_amphibian[[i]] <- list(SDMtune::predict(model_rndcv4k_amphibian[[i]], 
+                                                  t.t.amphibian_0.2[[i]][[2]],
+                                                  fun = "mean",
+                                                  type = "cloglog"),
+                                 SDMtune::predict(model_rndcv4k_amphibian[[i]],
+                                 t.t.amphibian_0.2[[i]][[2]]@data[t.t.amphibian_0.2[[i]][[2]]@pa == 1,],
+                                                   fun = "mean",
+                                                   type = "cloglog"))} #전부다는 [[1]]에, 출현은 [[2]]에
+```
+
+
+```{r test_spcv mean}
+#REPTILE SP
+test_spcv4k_reptile <- list()
+for(i in 1:length(model_spcv4k_reptile)){
+test_spcv4k_reptile[[i]] <- list(SDMtune::predict(model_spcv4k_reptile[[i]], 
+                                                  t.t.reptile_0.2[[i]][[2]],
+                                                  fun = "mean",
+                                                  type = "cloglog"),
+                                 SDMtune::predict(model_spcv4k_reptile[[i]],
+                                 t.t.reptile_0.2[[i]][[2]]@data[t.t.reptile_0.2[[i]][[2]]@pa == 1,],
+                                                   fun = "mean",
+                                                   type = "cloglog"))} #전부다는 [[1]]에, 출현은 [[2]]에
+```
+
+
+```{r test_spcv mean}
+#AMPHIBIAN SP
+test_spcv4k_amphibian <- list()
+for(i in 1:length(model_spcv4k_amphibian)){
+test_spcv4k_amphibian[[i]] <- list(SDMtune::predict(model_spcv4k_amphibian[[i]], 
+                                                  t.t.amphibian_0.2[[i]][[2]],
+                                                  fun = "mean",
+                                                  type = "cloglog"),
+                                 SDMtune::predict(model_spcv4k_amphibian[[i]],
+                                 t.t.amphibian_0.2[[i]][[2]]@data[t.t.amphibian_0.2[[i]][[2]]@pa == 1,],
+                                                   fun = "mean",
+                                                   type = "cloglog"))} #전부다는 [[1]]에, 출현은 [[2]]에
+```
+
+
+
+
+test_rnd but PCNM REPTILE
+```{r test_rndcv mean}
+test_rndcv4k.pcnm_reptile <- list()
+for(i in 29:length(model_rndcv4k.pcnm_reptile)){
+test_rndcv4k.pcnm_reptile[[i]] <- list(SDMtune::predict(model_rndcv4k.pcnm_reptile[[i]], 
+                                                  t.t.pcnm.reptile_0.2[[i]][[2]],
+                                                  fun = "mean",
+                                                  type = "cloglog"),
+                                 SDMtune::predict(model_rndcv4k.pcnm_reptile[[i]],
+                                 t.t.pcnm.reptile_0.2[[i]][[2]]@data[t.t.pcnm.reptile_0.2[[i]][[2]]@pa == 1,],
+                                                   fun = "mean",
+                                                   type = "cloglog")
+                                )} #전부다는 [[1]]에, 출현은 [[2]]에
+```
+
+
+
+
+
+
+
+
+test_rnd but PCNM AMPHIBIAN
+```{r test_rndcv mean}
+test_rndcv4k.pcnm_amphibian <- list()
+for(i in 14:length(model_rndcv4k.pcnm_amphibian)){
+test_rndcv4k.pcnm_amphibian[[i]] <- list(SDMtune::predict(model_rndcv4k.pcnm_amphibian[[i]], 
+                                                  t.t.pcnm.amphibian_0.2[[i]][[2]],
+                                                  fun = "mean",
+                                                  type = "cloglog"),
+                                 SDMtune::predict(model_rndcv4k.pcnm_amphibian[[i]],
+                                 t.t.pcnm.amphibian_0.2[[i]][[2]]@data[t.t.pcnm.amphibian_0.2[[i]][[2]]@pa == 1,],
+                                                   fun = "mean",
+                                                   type = "cloglog"))} #전부다는 [[1]]에, 출현은 [[2]]에
+```
+
+test_SP PCNM REPTILE
+
+```{r test_rndcv mean}
+test_spcv4k.pcnm_reptile <- list()
+for(i in 1:length(model_spcv4k.pcnm_reptile)){
+test_spcv4k.pcnm_reptile[[i]] <- list(SDMtune::predict(model_spcv4k.pcnm_reptile[[i]], 
+                                                  t.t.pcnm.reptile_0.2[[i]][[2]],
+                                                  fun = "mean",
+                                                  type = "cloglog"),
+                                 SDMtune::predict(model_spcv4k.pcnm_reptile[[i]],
+                                 t.t.pcnm.reptile_0.2[[i]][[2]]@data[t.t.pcnm.reptile_0.2[[i]][[2]]@pa == 1,],
+                                                   fun = "mean",
+                                                   type = "cloglog"))} #전부다는 [[1]]에, 출현은 [[2]]에
+```
+
+test_SP PCNM AMPHIBIAN
+
+```{r test_rndcv mean}
+test_spcv4k.pcnm_amphibian <- list()
+for(i in 1:length(model_spcv4k.pcnm_amphibian)){
+test_spcv4k.pcnm_amphibian[[i]] <- list(SDMtune::predict(model_spcv4k.pcnm_amphibian[[i]], 
+                                                  t.t.pcnm.amphibian_0.2[[i]][[2]],
+                                                  fun = "mean",
+                                                  type = "cloglog"),
+                                 SDMtune::predict(model_spcv4k.pcnm_amphibian[[i]],
+                                 t.t.pcnm.amphibian_0.2[[i]][[2]]@data[t.t.pcnm.amphibian_0.2[[i]][[2]]@pa == 1,],
+                                                   fun = "mean",
+                                                   type = "cloglog"))} #전부다는 [[1]]에, 출현은 [[2]]에
+```
+
+
+test_spcv 
+```{r test_spcv mean}
+test_spcv4k_mammal <- list()
+for(i in 1:length(model_spcv4k_mammal)){
+test_spcv4k_mammal[[i]] <- list(SDMtune::predict(model_spcv4k_mammal[[i]], 
+                                                  t.t.mammal_0.2[[i]][[2]],
+                                                  fun = "mean",
+                                                  type = "cloglog"),
+                                 SDMtune::predict(model_spcv4k_mammal[[i]],
+                                 t.t.mammal_0.2[[i]][[2]]@data[t.t.mammal_0.2[[i]][[2]]@pa == 1,],
+                                                   fun = "mean",
+                                                   type = "cloglog"))} #전부다는 [[1]]에, 출현은 [[2]]에
+```
+
+
+
+
+
+
+test_rndcv not mean
+```{r test_rndcv not mean}
+test_rndcv4k.notmean_mammal <- list()
+for(i in 1:length(model_rndcv4k_mammal)){
+test_rndcv4k.notmean_mammal[[i]] <- list(list(SDMtune::predict(model_rndcv4k_mammal[[i]]@models[[1]], 
+                                                  t.t.mammal_0.2[[i]][[2]],
+                                                  fun = "mean",
+                                                  type = "cloglog"),
+                                 SDMtune::predict(model_rndcv4k_mammal[[i]]@models[[1]],
+                                 t.t.mammal_0.2[[i]][[2]]@data[t.t.mammal_0.2[[i]][[2]]@pa == 1,],
+                                                   fun = "mean",
+                                                   type = "cloglog")),
+                                 list(SDMtune::predict(model_rndcv4k_mammal[[i]]@models[[2]], 
+                                                  t.t.mammal_0.2[[i]][[2]],
+                                                  fun = "mean",
+                                                  type = "cloglog"),
+                                 SDMtune::predict(model_rndcv4k_mammal[[i]]@models[[2]],
+                                 t.t.mammal_0.2[[i]][[2]]@data[t.t.mammal_0.2[[i]][[2]]@pa == 1,],
+                                                   fun = "mean",
+                                                   type = "cloglog")),
+                                 list(SDMtune::predict(model_rndcv4k_mammal[[i]]@models[[3]], 
+                                                  t.t.mammal_0.2[[i]][[2]],
+                                                  fun = "mean",
+                                                  type = "cloglog"),
+                                 SDMtune::predict(model_rndcv4k_mammal[[i]]@models[[3]],
+                                 t.t.mammal_0.2[[i]][[2]]@data[t.t.mammal_0.2[[i]][[2]]@pa == 1,],
+                                                   fun = "mean",
+                                                   type = "cloglog")),
+                                 list(SDMtune::predict(model_rndcv4k_mammal[[i]]@models[[4]], 
+                                                  t.t.mammal_0.2[[i]][[2]],
+                                                  fun = "mean",
+                                                  type = "cloglog"),
+                                 SDMtune::predict(model_rndcv4k_mammal[[i]]@models[[4]],
+                                 t.t.mammal_0.2[[i]][[2]]@data[t.t.mammal_0.2[[i]][[2]]@pa == 1,],
+                                                   fun = "mean",
+                                                   type = "cloglog")))} #전부다는 [[1]]에, 출현은 [[2]]에
+```
+
+test spcv not mean
+```{r test_spcv not mean}
+test_spcv4k.notmean_mammal <- list()
+for(i in 1:length(model_spcv4k_mammal)){
+test_spcv4k.notmean_mammal[[i]] <- list(list(SDMtune::predict(model_spcv4k_mammal[[i]]@models[[1]], 
+                                                  t.t.mammal_0.2[[i]][[2]],
+                                                  fun = "mean",
+                                                  type = "cloglog"),
+                                 SDMtune::predict(model_spcv4k_mammal[[i]]@models[[1]],
+                                 t.t.mammal_0.2[[i]][[2]]@data[t.t.mammal_0.2[[i]][[2]]@pa == 1,],
+                                                   fun = "mean",
+                                                   type = "cloglog")),
+                                 list(SDMtune::predict(model_spcv4k_mammal[[i]]@models[[2]], 
+                                                  t.t.mammal_0.2[[i]][[2]],
+                                                  fun = "mean",
+                                                  type = "cloglog"),
+                                 SDMtune::predict(model_spcv4k_mammal[[i]]@models[[2]],
+                                 t.t.mammal_0.2[[i]][[2]]@data[t.t.mammal_0.2[[i]][[2]]@pa == 1,],
+                                                   fun = "mean",
+                                                   type = "cloglog")),
+                                 list(SDMtune::predict(model_spcv4k_mammal[[i]]@models[[3]], 
+                                                  t.t.mammal_0.2[[i]][[2]],
+                                                  fun = "mean",
+                                                  type = "cloglog"),
+                                 SDMtune::predict(model_spcv4k_mammal[[i]]@models[[3]],
+                                 t.t.mammal_0.2[[i]][[2]]@data[t.t.mammal_0.2[[i]][[2]]@pa == 1,],
+                                                   fun = "mean",
+                                                   type = "cloglog")),
+                                 list(SDMtune::predict(model_spcv4k_mammal[[i]]@models[[4]], 
+                                                  t.t.mammal_0.2[[i]][[2]],
+                                                  fun = "mean",
+                                                  type = "cloglog"),
+                                 SDMtune::predict(model_spcv4k_mammal[[i]]@models[[4]],
+                                 t.t.mammal_0.2[[i]][[2]]@data[t.t.mammal_0.2[[i]][[2]]@pa == 1,],
+                                                   fun = "mean",
+                                                   type = "cloglog")))} #전부다는 [[1]]에, 출현은 [[2]]에
+```
+
+
+```{r}
+poc.df_rndcv4k_mammal <- list()
+for(i in 1:length(model_rndcv4k_mammal)){
+poc.df_rndcv4k_mammal[[i]] <- list(SDMtune::predict(model_rndcv4k_mammal[[i]], 
+                                 t.t.mammal_0.2[[i]][[2]]@data[t.t.mammal_0.2[[i]][[2]]@pa == 0,],
+                                                  fun = "mean",
+                                                  type = "cloglog"),
+                                 SDMtune::predict(model_rndcv4k_mammal[[i]],
+                                 t.t.mammal_0.2[[i]][[2]]@data[t.t.mammal_0.2[[i]][[2]]@pa == 1,],
+                                                   fun = "mean",
+                                                   type = "cloglog"))} #배경은 [[1]]에, 출현은 [[2]]에
+
+
+
+
+
+
+```
+
+boyce caculator
+```{r}
+my.boyce <- function(x,y){ecospat.boyce(fit = x, 
+                                        obs = y,
+                                              nclass=0,
+                                              window.w="default",
+                                              res=100,
+                                              PEplot = TRUE)}
+```
+
+
+```{r boyce.test mean}
+boyce.test.rnd_mammal <- list()
+for(i in 1:length(test_rndcv4k_mammal)){
+boyce.test.rnd_mammal[[i]] <- my.boyce(test_rndcv4k_mammal[[i]][[1]], test_rndcv4k_mammal[[i]][[2]])  
+}
+
+```
+
+```{r boyce.test rnd bioclimate mean reptile}
+boyce.test.rnd_reptile <- list()
+for(i in 1:length(test_rndcv4k_reptile)){
+boyce.test.rnd_reptile[[i]] <- my.boyce(test_rndcv4k_reptile[[i]][[1]], test_rndcv4k_reptile[[i]][[2]])  
+}
+
+```
+
+
+
+
+```{r boyce.test rnd bioclimate mean reptile}
+boyce.test.rnd_amphibian <- list()
+for(i in 1:length(test_rndcv4k_amphibian)){
+boyce.test.rnd_amphibian[[i]] <- my.boyce(test_rndcv4k_amphibian[[i]][[1]], test_rndcv4k_amphibian[[i]][[2]])  
+}
+
+```
+
+
+
+```{r boyce.test rnd PCNM mean reptile}
+boyce.test.rnd.pcnm_reptile <- list()
+for(i in 29:length(test_rndcv4k.pcnm_reptile)){
+boyce.test.rnd.pcnm_reptile[[i]] <- my.boyce(test_rndcv4k.pcnm_reptile[[i]][[1]], test_rndcv4k.pcnm_reptile[[i]][[2]])  
+}
+
+```
+
+
+```{r boyce.test rnd PCNM mean amphibian}
+boyce.test.rnd.pcnm_amphibian <- list()
+for(i in 14:length(test_rndcv4k.pcnm_amphibian)){
+boyce.test.rnd.pcnm_amphibian[[i]] <- my.boyce(test_rndcv4k.pcnm_amphibian[[i]][[1]], test_rndcv4k.pcnm_amphibian[[i]][[2]])  
+}
+
+```
+
+
+```{r boyce.test mean}
+#REPTILE SP
+boyce.test.sp_reptile <- list()
+for(i in 1:length(test_spcv4k_reptile)){
+boyce.test.sp_reptile[[i]] <- my.boyce(test_spcv4k_reptile[[i]][[1]], test_spcv4k_reptile[[i]][[2]])  
+}
+
+```
+
+```{r boyce.test mean}
+#AMPHIBIAN SP
+boyce.test.sp_amphibian <- list()
+for(i in 1:length(test_spcv4k_amphibian)){
+boyce.test.sp_amphibian[[i]] <- my.boyce(test_spcv4k_amphibian[[i]][[1]], test_spcv4k_amphibian[[i]][[2]])  
+}
+
+```
+
+
+
+```{r boyce.test sp PCNM mean REPTILE}
+boyce.test.sp.pcnm_reptile <- list()
+for(i in 1:length(test_spcv4k.pcnm_reptile)){
+boyce.test.sp.pcnm_reptile[[i]] <- my.boyce(test_spcv4k.pcnm_reptile[[i]][[1]], test_spcv4k.pcnm_reptile[[i]][[2]])  
+}
+
+```
+
+
+```{r boyce.test sp PCNM mean}
+boyce.test.sp.pcnm_amphibian <- list()
+for(i in 5:length(test_spcv4k.pcnm_amphibian)){
+boyce.test.sp.pcnm_amphibian[[i]] <- my.boyce(test_spcv4k.pcnm_amphibian[[i]][[1]], test_spcv4k.pcnm_amphibian[[i]][[2]])  
+}
+
+```
+
+
+```{r boyce.test rnd NOT mean}
+boyce.test.rnd.notmean_mammal <- list()
+for(i in 1:length(test_rndcv4k.notmean_mammal)){boyce.test.rnd.notmean_mammal[[i]] <- 
+                    list(my.boyce(test_rndcv4k.notmean_mammal[[i]][[1]][[1]], test_rndcv4k.notmean_mammal[[i]][[1]][[2]]),
+                        my.boyce(test_rndcv4k.notmean_mammal[[i]][[2]][[1]], test_rndcv4k.notmean_mammal[[i]][[2]][[2]]),
+                        my.boyce(test_rndcv4k.notmean_mammal[[i]][[3]][[1]], test_rndcv4k.notmean_mammal[[i]][[3]][[2]]),
+                        my.boyce(test_rndcv4k.notmean_mammal[[i]][[4]][[1]], test_rndcv4k.notmean_mammal[[i]][[4]][[2]]))
+}
+```
+
+
+#jesus fucking macrotis lagotis
+do not remove. just pass that fig
+```{r boyce.test rnd NOT mean}
+boyce.test.sp.notmean_mammal <- list()
+for(i in 1:length(test_spcv4k.notmean_mammal)){boyce.test.sp.notmean_mammal[[i]] <- 
+                    list(my.boyce(test_spcv4k.notmean_mammal[[i]][[1]][[1]], test_spcv4k.notmean_mammal[[i]][[1]][[2]]),
+                        my.boyce(test_spcv4k.notmean_mammal[[i]][[2]][[1]], test_spcv4k.notmean_mammal[[i]][[2]][[2]]),
+                        my.boyce(test_spcv4k.notmean_mammal[[i]][[3]][[1]], test_spcv4k.notmean_mammal[[i]][[3]][[2]]),
+                        my.boyce(test_spcv4k.notmean_mammal[[i]][[4]][[1]], test_spcv4k.notmean_mammal[[i]][[4]][[2]]))
+}# this will stop at 12 macrotis lagotis
+```
+```{r boyce.test rnd NOT mean}
+boyce.test.sp.notmean_mammal <- list()
+for(i in 13:length(test_spcv4k.notmean_mammal)){boyce.test.sp.notmean_mammal[[i]] <- 
+                    list(my.boyce(test_spcv4k.notmean_mammal[[i]][[1]][[1]], test_spcv4k.notmean_mammal[[i]][[1]][[2]]),
+                        my.boyce(test_spcv4k.notmean_mammal[[i]][[2]][[1]], test_spcv4k.notmean_mammal[[i]][[2]][[2]]),
+                        my.boyce(test_spcv4k.notmean_mammal[[i]][[3]][[1]], test_spcv4k.notmean_mammal[[i]][[3]][[2]]),
+                        my.boyce(test_spcv4k.notmean_mammal[[i]][[4]][[1]], test_spcv4k.notmean_mammal[[i]][[4]][[2]]))
+}# so just fucking pass it
+```
+
+make df 
+```{r}
+df.boyce.test.rndsp.notmean_mammal <- list()
+for(i in 1:35){df.boyce.test.rndsp.notmean_mammal[[i]] <- rbind(data.frame(Hs = boyce.test.rnd.notmean_mammal[[i]][[1]]$HS,
+                                                                F.ratio = boyce.test.rnd.notmean_mammal[[i]][[1]]$F.ratio,
+                                                                model = "random",
+                                                                species = data.mammal[[i]]@species),
+                                                                data.frame(Hs = boyce.test.rnd.notmean_mammal[[i]][[2]]$HS,
+                                                                F.ratio = boyce.test.rnd.notmean_mammal[[i]][[2]]$F.ratio,
+                                                                model = "random",
+                                                                species = data.mammal[[i]]@species),
+                                                                data.frame(Hs = boyce.test.rnd.notmean_mammal[[i]][[3]]$HS,
+                                                                F.ratio = boyce.test.rnd.notmean_mammal[[i]][[3]]$F.ratio,
+                                                                model = "random",
+                                                                species = data.mammal[[i]]@species),
+                                                                data.frame(Hs = boyce.test.rnd.notmean_mammal[[i]][[4]]$HS,
+                                                                F.ratio = boyce.test.rnd.notmean_mammal[[i]][[4]]$F.ratio,
+                                                                model = "random",
+                                                                species = data.mammal[[i]]@species),
+                                                                data.frame(Hs= boyce.test.sp.notmean_mammal[[i]][[1]]$HS,
+                                                                F.ratio = boyce.test.sp.notmean_mammal[[i]][[1]]$F.ratio,
+                                                                model = "spatial",
+                                                                species = data.mammal[[i]]@species),
+                                                                data.frame(Hs= boyce.test.sp.notmean_mammal[[i]][[2]]$HS,
+                                                                F.ratio = boyce.test.sp.notmean_mammal[[i]][[2]]$F.ratio,
+                                                                model = "spatial",
+                                                                species = data.mammal[[i]]@species),
+                                                                data.frame(Hs= boyce.test.sp.notmean_mammal[[i]][[3]]$HS,
+                                                                F.ratio = boyce.test.sp.notmean_mammal[[i]][[3]]$F.ratio,
+                                                                model = "spatial",
+                                                                species = data.mammal[[i]]@species),
+                                                                data.frame(Hs= boyce.test.sp.notmean_mammal[[i]][[4]]$HS,
+                                                                F.ratio = boyce.test.sp.notmean_mammal[[i]][[4]]$F.ratio,
+                                                                model = "spatial",
+                                                                species = data.mammal[[i]]@species))
+}# this will stop in 11
+
+#pass 12 and move on to 13
+for(i in 13:35){df.boyce.test.rndsp.notmean_mammal[[i]] <- rbind(data.frame(Hs = boyce.test.rnd.notmean_mammal[[i]][[1]]$HS,
+                                                                F.ratio = boyce.test.rnd.notmean_mammal[[i]][[1]]$F.ratio,
+                                                                model = "random",
+                                                                species = data.mammal[[i]]@species),
+                                                                data.frame(Hs = boyce.test.rnd.notmean_mammal[[i]][[2]]$HS,
+                                                                F.ratio = boyce.test.rnd.notmean_mammal[[i]][[2]]$F.ratio,
+                                                                model = "random",
+                                                                species = data.mammal[[i]]@species),
+                                                                data.frame(Hs = boyce.test.rnd.notmean_mammal[[i]][[3]]$HS,
+                                                                F.ratio = boyce.test.rnd.notmean_mammal[[i]][[3]]$F.ratio,
+                                                                model = "random",
+                                                                species = data.mammal[[i]]@species),
+                                                                data.frame(Hs = boyce.test.rnd.notmean_mammal[[i]][[4]]$HS,
+                                                                F.ratio = boyce.test.rnd.notmean_mammal[[i]][[4]]$F.ratio,
+                                                                model = "random",
+                                                                species = data.mammal[[i]]@species),
+                                                                data.frame(Hs= boyce.test.sp.notmean_mammal[[i]][[1]]$HS,
+                                                                F.ratio = boyce.test.sp.notmean_mammal[[i]][[1]]$F.ratio,
+                                                                model = "spatial",
+                                                                species = data.mammal[[i]]@species),
+                                                                data.frame(Hs= boyce.test.sp.notmean_mammal[[i]][[2]]$HS,
+                                                                F.ratio = boyce.test.sp.notmean_mammal[[i]][[2]]$F.ratio,
+                                                                model = "spatial",
+                                                                species = data.mammal[[i]]@species),
+                                                                data.frame(Hs= boyce.test.sp.notmean_mammal[[i]][[3]]$HS,
+                                                                F.ratio = boyce.test.sp.notmean_mammal[[i]][[3]]$F.ratio,
+                                                                model = "spatial",
+                                                                species = data.mammal[[i]]@species),
+                                                                data.frame(Hs= boyce.test.sp.notmean_mammal[[i]][[4]]$HS,
+                                                                F.ratio = boyce.test.sp.notmean_mammal[[i]][[4]]$F.ratio,
+                                                                model = "spatial",
+                                                                species = data.mammal[[i]]@species))
+}
+
+df.boyce.test.rndsp.notmean_mammal[-12] -> df.boyce.test.rndsp.notmean_mammal
+df.boyce.test.rndsp.notmean_mammal2 <- do.call(rbind, df.boyce.test.rndsp.notmean_mammal)    
+
+
+```
+
+
+
+to check boyce of spcv4k without PCNM
+```{r}
+test_spcv4k_amphibian <- list()
+for(i in 1:length(model_spcv4k_amphibian)){
+test_spcv4k_amphibian[[i]] <- list(SDMtune::predict(model_spcv4k_amphibian[[i]], 
+                                                  t.t.amphibian_0.2[[i]][[2]],
+                                                  fun = "mean",
+                                                  type = "cloglog"),
+                                 SDMtune::predict(model_spcv4k_amphibian[[i]],
+                                 t.t.amphibian_0.2[[i]][[2]]@data[t.t.amphibian_0.2[[i]][[2]]@pa == 1,],
+                                                   fun = "mean",
+                                                   type = "cloglog"))} #전부다는 [[1]]에, 출현은 [[2]]에
+```
+
+```{r}
+boyce_test.sp_amphibian <- list()
+for(i in 1:length(test_spcv4k_amphibian)){
+boyce_test.sp_amphibian[[i]] <- my.boyce(test_spcv4k_amphibian[[i]][[1]], test_spcv4k_amphibian[[i]][[2]])  
+}
+```
+
+
+
+```{r}
+
+
+boyce_test.sp.pcnm_amphibian <- list()
+for(i in 1:length(test_spcv4k.pcnm_amphibian)){
+boyce_test.sp.pcnm_amphibian[[i]] <- my.boyce(test_spcv4k.pcnm_amphibian[[i]][[1]], test_spcv4k.pcnm_amphibian[[i]][[2]])  
+}
+```
+
+
+```{r}
+df.boyce.test.sp.pcnm_amphibian <- list()
+for(i in 1:30){df.boyce.test.sp.pcnm_amphibian[[i]] <- rbind(data.frame(Hs = boyce_test.sp.pcnm_amphibian[[i]][[1]]$HS,
+                                                            F.ratio = boyce_test.sp.pcnm_amphibian[[i]][[1]]$F.ratio,
+                                                            model = "m1",
+                                                            species = data.amphibian.pcnm[[i]]@species),
+                                                 data.frame(Hs = boyce_test.sp.pcnm_amphibian[[i]][[2]]$HS,
+                                                            F.ratio = boyce_test.sp.pcnm_amphibian[[i]][[2]]$F.ratio,
+                                                            model = "m2",
+                                                            species = data.amphibian.pcnm[[i]]@species),
+                                                 data.frame(Hs = boyce_test.sp.pcnm_amphibian[[i]][[3]]$HS,
+                                                            F.ratio = boyce_test.sp.pcnm_amphibian[[i]][[3]]$F.ratio,
+                                                            model = "m3",
+                                                            species = data.amphibian.pcnm[[i]]@species),
+                                                 data.frame(Hs = boyce_test.sp.pcnm_amphibian[[i]][[4]]$HS,
+                                                            F.ratio = boyce_test.sp.pcnm_amphibian[[i]][[4]]$F.ratio,
+                                                            model = "m4",
+                                                            species = data.amphibian.pcnm[[i]]@species))}
+
+
+
+df.boyce.test.sp.pcnm_amphibian2 <- do.call(rbind, df.boyce.test.sp.pcnm_amphibian)
+```
+
+
+
+```{r}
+
+data.val.mammal <- list()
+for(i in 1:35){data.val.mammal[[i]] <- list(model_rndcv4k_mammal[[i]]@data@data[model_rndcv4k_mammal[[i]]@folds$test[,1],][1:(sum(model_rndcv4k_mammal[[i]]@data@pa == 1) - sum(model_rndcv4k_mammal[[i]]@models[[1]]@data@pa == 1)),],
+                    model_rndcv4k_mammal[[i]]@data@data[model_rndcv4k_mammal[[i]]@folds$test[,2],][1:(sum(model_rndcv4k_mammal[[i]]@data@pa == 1) - sum(model_rndcv4k_mammal[[i]]@models[[2]]@data@pa == 1)),],
+                    model_rndcv4k_mammal[[i]]@data@data[model_rndcv4k_mammal[[i]]@folds$test[,3],][1:(sum(model_rndcv4k_mammal[[i]]@data@pa == 1) - sum(model_rndcv4k_mammal[[i]]@models[[3]]@data@pa == 1)),],
+                    model_rndcv4k_mammal[[i]]@data@data[model_rndcv4k_mammal[[i]]@folds$test[,4],][1:(sum(model_rndcv4k_mammal[[i]]@data@pa == 1) - sum(model_rndcv4k_mammal[[i]]@models[[4]]@data@pa == 1)),])}
+
+data.valnwbg.mammal <- list()
+for(i in 1:35){
+  data.valnwbg.mammal[[i]] <- list( model_rndcv4k_mammal[[i]]@data@data[model_rndcv4k_mammal[[i]]@folds$test[,1],],
+model_rndcv4k_mammal[[i]]@data@data[model_rndcv4k_mammal[[i]]@folds$test[,2],],
+model_rndcv4k_mammal[[i]]@data@data[model_rndcv4k_mammal[[i]]@folds$test[,3],],
+model_rndcv4k_mammal[[i]]@data@data[model_rndcv4k_mammal[[i]]@folds$test[,4],])
+}
+
+
+# model_rndcv4k_mammal[[1]]@data@data[model_rndcv4k_mammal[[1]]@folds$test[,1],][1:(sum(model_rndcv4k_mammal#[[1]]@data@pa == 1) - sum(model_rndcv4k_mammal[[1]]@models[[1]]@data@pa == 1)),] # 1st val set
+
+# CV 모형의 전체 학습 출현 개수
+#sum(model_rndcv4k_mammal[[1]]@data@pa == 1)
+# 1번 모형의 학습 출현 개수
+#sum(model_rndcv4k_mammal[[1]]@models[[1]]@data@pa == 1)
+  
+  
+#model_rndcv4k_mammal[[1]]@data@data[model_rndcv4k_mammal[[1]]@folds$test[,1],][model_rndcv4k_mammal[[1]]@models[[1]]@data@pa# 1st val set
+
+#model_rndcv4k_mammal[[1]]@data@data[model_rndcv4k_mammal[[1]]@data@pa==1,][model_rndcv4k_mammal[[1]]@folds$test[,1],]                                                                               
+                                                                               
+                                                                               
+                                                                               
+#model_rndcv4k_mammal[[1]]@data@data[model_rndcv4k_mammal[[1]]@folds$test[,2],]# 2nd val set
+#model_rndcv4k_mammal[[1]]@data@data[model_rndcv4k_mammal[[1]]@folds$test[,3],]# 3rd val set
+#model_rndcv4k_mammal[[1]]@data@data[model_rndcv4k_mammal[[1]]@folds$test[,4],]# 4th val set
+
+#1번 종의 CV 모형        #그중 1번째 모형 #에 포함된 데이터
+#model_rndcv4k_mammal[[1]]@models[[1]]@data@data[model_rndcv4k_mammal[[1]]@folds$test[,1],]
+
+#1번 종의 CV 모형        #그중 1번째 모형 #에 포함된 데이터(종, pa도 잇음)
+#model_rndcv4k_mammal[[1]]@models[[1]]@data@data[model_rndcv4k_mammal[[1]]@models[[1]]@data@pa == 1,]
+
+```
+
+
+validation to pcnm model
+```{r}
+
+data.val.amphibian <- list()
+for(i in 1:34){data.val.amphibian[[i]] <- list(model_rndcv4k.pcnm_amphibian[[i]]@data@data[model_rndcv4k.pcnm_amphibian[[i]]@folds$test[,1],][1:(sum(model_rndcv4k.pcnm_amphibian[[i]]@data@pa == 1) - sum(model_rndcv4k.pcnm_amphibian[[i]]@models[[1]]@data@pa == 1)),],
+                    model_rndcv4k.pcnm_amphibian[[i]]@data@data[model_rndcv4k.pcnm_amphibian[[i]]@folds$test[,2],][1:(sum(model_rndcv4k.pcnm_amphibian[[i]]@data@pa == 1) - sum(model_rndcv4k.pcnm_amphibian[[i]]@models[[2]]@data@pa == 1)),],
+                    model_rndcv4k.pcnm_amphibian[[i]]@data@data[model_rndcv4k.pcnm_amphibian[[i]]@folds$test[,3],][1:(sum(model_rndcv4k.pcnm_amphibian[[i]]@data@pa == 1) - sum(model_rndcv4k.pcnm_amphibian[[i]]@models[[3]]@data@pa == 1)),],
+                    model_rndcv4k.pcnm_amphibian[[i]]@data@data[model_rndcv4k.pcnm_amphibian[[i]]@folds$test[,4],][1:(sum(model_rndcv4k.pcnm_amphibian[[i]]@data@pa == 1) - sum(model_rndcv4k.pcnm_amphibian[[i]]@models[[4]]@data@pa == 1)),])}
+
+data.valnwbg.amphibian <- list()
+for(i in 1:34){
+  data.valnwbg.amphibian[[i]] <- list( model_rndcv4k.pcnm_amphibian[[i]]@data@data[model_rndcv4k.pcnm_amphibian[[i]]@folds$test[,1],],
+model_rndcv4k.pcnm_amphibian[[i]]@data@data[model_rndcv4k.pcnm_amphibian[[i]]@folds$test[,2],],
+model_rndcv4k.pcnm_amphibian[[i]]@data@data[model_rndcv4k.pcnm_amphibian[[i]]@folds$test[,3],],
+model_rndcv4k.pcnm_amphibian[[i]]@data@data[model_rndcv4k.pcnm_amphibian[[i]]@folds$test[,4],])
+}
+
+```
+
+validation to PCNM SPatial
+```{r}
+
+
+data.val.sp.amphibian <- list()
+for(i in 1:30){data.val.sp.amphibian[[i]] <- list(model_spcv4k.pcnm_amphibian[[i]]@data@data[model_spcv4k.pcnm_amphibian[[i]]@folds$test[,1],][1:(sum(model_spcv4k.pcnm_amphibian[[i]]@data@pa == 1) - sum(model_spcv4k.pcnm_amphibian[[i]]@models[[1]]@data@pa == 1)),],
+                    model_spcv4k.pcnm_amphibian[[i]]@data@data[model_spcv4k.pcnm_amphibian[[i]]@folds$test[,2],][1:(sum(model_spcv4k.pcnm_amphibian[[i]]@data@pa == 1) - sum(model_spcv4k.pcnm_amphibian[[i]]@models[[2]]@data@pa == 1)),],
+                    model_spcv4k.pcnm_amphibian[[i]]@data@data[model_spcv4k.pcnm_amphibian[[i]]@folds$test[,3],][1:(sum(model_spcv4k.pcnm_amphibian[[i]]@data@pa == 1) - sum(model_spcv4k.pcnm_amphibian[[i]]@models[[3]]@data@pa == 1)),],
+                    model_spcv4k.pcnm_amphibian[[i]]@data@data[model_spcv4k.pcnm_amphibian[[i]]@folds$test[,4],][1:(sum(model_spcv4k.pcnm_amphibian[[i]]@data@pa == 1) - sum(model_spcv4k.pcnm_amphibian[[i]]@models[[4]]@data@pa == 1)),])}
+
+data.valnwbg.sp.amphibian <- list()
+for(i in 1:30){
+  data.valnwbg.sp.amphibian[[i]] <- list( model_spcv4k.pcnm_amphibian[[i]]@data@data[model_spcv4k.pcnm_amphibian[[i]]@folds$test[,1],],
+model_spcv4k.pcnm_amphibian[[i]]@data@data[model_spcv4k.pcnm_amphibian[[i]]@folds$test[,2],],
+model_spcv4k.pcnm_amphibian[[i]]@data@data[model_spcv4k.pcnm_amphibian[[i]]@folds$test[,3],],
+model_spcv4k.pcnm_amphibian[[i]]@data@data[model_spcv4k.pcnm_amphibian[[i]]@folds$test[,4],])
+}
+
+
+```
+
+
+
+
+
+DATA from validation model built with Spatial block cross validation
+```{r spatial block}
+data.val.sp.mammal <- list()
+for(i in 1:35){data.val.sp.mammal[[i]] <- list(model_spcv4k_mammal[[i]]@data@data[model_spcv4k_mammal[[i]]@folds$test[,1],][1:(sum(model_spcv4k_mammal[[i]]@data@pa == 1) - sum(model_spcv4k_mammal[[i]]@models[[1]]@data@pa == 1)),],
+                    model_spcv4k_mammal[[i]]@data@data[model_spcv4k_mammal[[i]]@folds$test[,2],][1:(sum(model_spcv4k_mammal[[i]]@data@pa == 1) - sum(model_spcv4k_mammal[[i]]@models[[2]]@data@pa == 1)),],
+                    model_rndcv4k_mammal[[i]]@data@data[model_spcv4k_mammal[[i]]@folds$test[,3],][1:(sum(model_spcv4k_mammal[[i]]@data@pa == 1) - sum(model_spcv4k_mammal[[i]]@models[[3]]@data@pa == 1)),],
+                    model_spcv4k_mammal[[i]]@data@data[model_spcv4k_mammal[[i]]@folds$test[,4],][1:(sum(model_spcv4k_mammal[[i]]@data@pa == 1) - sum(model_spcv4k_mammal[[i]]@models[[4]]@data@pa == 1)),])}
+
+data.valnwbg.sp.mammal <- list()
+for(i in 1:35){
+  data.valnwbg.sp.mammal[[i]] <- list( model_spcv4k_mammal[[i]]@data@data[model_spcv4k_mammal[[i]]@folds$test[,1],],
+model_spcv4k_mammal[[i]]@data@data[model_spcv4k_mammal[[i]]@folds$test[,2],],
+model_spcv4k_mammal[[i]]@data@data[model_spcv4k_mammal[[i]]@folds$test[,3],],
+model_spcv4k_mammal[[i]]@data@data[model_spcv4k_mammal[[i]]@folds$test[,4],])
+}
+```
+
+
+```{r environmental block}
+data.val.env.mammal <- list()
+for(i in 1:35){data.val.env.mammal[[i]] <- list(model_envcv4k_mammal[[i]]@data@data[model_envcv4k_mammal[[i]]@folds$test[,1],][1:(sum(model_envcv4k_mammal[[i]]@data@pa == 1) - sum(model_envcv4k_mammal[[i]]@models[[1]]@data@pa == 1)),],
+                    model_envcv4k_mammal[[i]]@data@data[model_envcv4k_mammal[[i]]@folds$test[,2],][1:(sum(model_envcv4k_mammal[[i]]@data@pa == 1) - sum(model_envcv4k_mammal[[i]]@models[[2]]@data@pa == 1)),],
+                    model_rndcv4k_mammal[[i]]@data@data[model_envcv4k_mammal[[i]]@folds$test[,3],][1:(sum(model_envcv4k_mammal[[i]]@data@pa == 1) - sum(model_envcv4k_mammal[[i]]@models[[3]]@data@pa == 1)),],
+                    model_envcv4k_mammal[[i]]@data@data[model_envcv4k_mammal[[i]]@folds$test[,4],][1:(sum(model_envcv4k_mammal[[i]]@data@pa == 1) - sum(model_envcv4k_mammal[[i]]@models[[4]]@data@pa == 1)),])}
+
+data.valnwbg.env.mammal <- list()
+for(i in 1:35){
+  data.valnwbg.env.mammal[[i]] <- list( model_envcv4k_mammal[[i]]@data@data[model_envcv4k_mammal[[i]]@folds$test[,1],],
+model_envcv4k_mammal[[i]]@data@data[model_envcv4k_mammal[[i]]@folds$test[,2],],
+model_envcv4k_mammal[[i]]@data@data[model_envcv4k_mammal[[i]]@folds$test[,3],],
+model_envcv4k_mammal[[i]]@data@data[model_envcv4k_mammal[[i]]@folds$test[,4],])
+}
+```
+
+
+
+문제 있는듯? 2번은  왜 모형 다르누?
+```{r}
+val_rndcv4k_mammal <- list()
+for(i in 1:length(model_rndcv4k_mammal)){
+val_rndcv4k_mammal[[i]] <- list(list(SDMtune::predict(model_rndcv4k_mammal[[i]]@models[[1]], 
+                                                  data.val.mammal[[i]][[1]],
+                                                  fun = "mean",
+                                                  type = "cloglog"),
+                                 SDMtune::predict(model_rndcv4k_mammal[[i]],
+                                 data.valnwbg.mammal[[i]][[1]],
+                                                   fun = "mean",
+                                                   type = "cloglog")),
+                                list(SDMtune::predict(model_rndcv4k_mammal[[i]]@models[[2]], 
+                                                  data.val.mammal[[i]][[2]],
+                                                  fun = "mean",
+                                                  type = "cloglog"),
+                                 SDMtune::predict(model_rndcv4k_mammal[[i]],
+                                 data.valnwbg.mammal[[i]][[2]],
+                                                   fun = "mean",
+                                                   type = "cloglog")),
+                                list(SDMtune::predict(model_rndcv4k_mammal[[i]]@models[[3]], 
+                                                  data.val.mammal[[i]][[3]],
+                                                  fun = "mean",
+                                                  type = "cloglog"),
+                                 SDMtune::predict(model_rndcv4k_mammal[[i]],
+                                 data.valnwbg.mammal[[i]][[3]],
+                                                   fun = "mean",
+                                                   type = "cloglog")),
+                                list(SDMtune::predict(model_rndcv4k_mammal[[i]]@models[[4]], 
+                                                  data.val.mammal[[i]][[4]],
+                                                  fun = "mean",
+                                                  type = "cloglog"),
+                                 SDMtune::predict(model_rndcv4k_mammal[[i]],
+                                 data.valnwbg.mammal[[i]][[4]],
+                                                   fun = "mean",
+                                                   type = "cloglog")))}
+```
+
+predict spatial validation set with spatial model (!)
+```{r}
+val_spcv4k_mammal <- list()
+for(i in 1:length(model_spcv4k_mammal)){
+val_spcv4k_mammal[[i]] <- list(list(SDMtune::predict(model_spcv4k_mammal[[i]]@models[[1]], 
+                                                  data.val.sp.mammal[[i]][[1]],
+                                                  fun = "mean",
+                                                  type = "cloglog"),
+                                 SDMtune::predict(model_spcv4k_mammal[[i]],
+                                 data.valnwbg.sp.mammal[[i]][[1]],
+                                                   fun = "mean",
+                                                   type = "cloglog")),
+                                list(SDMtune::predict(model_spcv4k_mammal[[i]]@models[[2]], 
+                                                  data.val.sp.mammal[[i]][[2]],
+                                                  fun = "mean",
+                                                  type = "cloglog"),
+                                 SDMtune::predict(model_spcv4k_mammal[[i]],
+                                 data.valnwbg.sp.mammal[[i]][[2]],
+                                                   fun = "mean",
+                                                   type = "cloglog")),
+                                list(SDMtune::predict(model_spcv4k_mammal[[i]]@models[[3]], 
+                                                  data.val.sp.mammal[[i]][[3]],
+                                                  fun = "mean",
+                                                  type = "cloglog"),
+                                 SDMtune::predict(model_spcv4k_mammal[[i]],
+                                 data.valnwbg.sp.mammal[[i]][[3]],
+                                                   fun = "mean",
+                                                   type = "cloglog")),
+                                list(SDMtune::predict(model_spcv4k_mammal[[i]]@models[[4]], 
+                                                  data.val.sp.mammal[[i]][[4]],
+                                                  fun = "mean",
+                                                  type = "cloglog"),
+                                 SDMtune::predict(model_spcv4k_mammal[[i]],
+                                 data.valnwbg.sp.mammal[[i]][[4]],
+                                                   fun = "mean",
+                                                   type = "cloglog")))}
+```
+
+predict environmental validation set with environmental model
+```{r}
+val_envcv4k_mammal <- list()
+for(i in 1:length(model_envcv4k_mammal)){
+val_envcv4k_mammal[[i]] <- list(list(SDMtune::predict(model_envcv4k_mammal[[i]]@models[[1]], 
+                                                  data.val.env.mammal[[i]][[1]],
+                                                  fun = "mean",
+                                                  type = "cloglog"),
+                                 SDMtune::predict(model_envcv4k_mammal[[i]],
+                                 data.valnwbg.env.mammal[[i]][[1]],
+                                                   fun = "mean",
+                                                   type = "cloglog")),
+                                list(SDMtune::predict(model_envcv4k_mammal[[i]]@models[[2]], 
+                                                  data.val.env.mammal[[i]][[2]],
+                                                  fun = "mean",
+                                                  type = "cloglog"),
+                                 SDMtune::predict(model_envcv4k_mammal[[i]],
+                                 data.valnwbg.env.mammal[[i]][[2]],
+                                                   fun = "mean",
+                                                   type = "cloglog")),
+                                list(SDMtune::predict(model_envcv4k_mammal[[i]]@models[[3]], 
+                                                  data.val.env.mammal[[i]][[3]],
+                                                  fun = "mean",
+                                                  type = "cloglog"),
+                                 SDMtune::predict(model_envcv4k_mammal[[i]],
+                                 data.valnwbg.env.mammal[[i]][[3]],
+                                                   fun = "mean",
+                                                   type = "cloglog")),
+                                list(SDMtune::predict(model_envcv4k_mammal[[i]]@models[[4]], 
+                                                  data.val.env.mammal[[i]][[4]],
+                                                  fun = "mean",
+                                                  type = "cloglog"),
+                                 SDMtune::predict(model_envcv4k_mammal[[i]],
+                                 data.valnwbg.env.mammal[[i]][[4]],
+                                                   fun = "mean",
+                                                   type = "cloglog")))}
+```
+
+validation to pcnm amphibian
+
+```{r}
+val_rndcv4k.pcnm_amphibian <- list()
+for(i in 1:length(model_rndcv4k.pcnm_amphibian)){
+val_rndcv4k.pcnm_amphibian[[i]] <- list(list(SDMtune::predict(model_rndcv4k.pcnm_amphibian[[i]]@models[[1]], 
+                                                  data.val.amphibian[[i]][[1]],
+                                                  fun = "mean",
+                                                  type = "cloglog"),
+                                 SDMtune::predict(model_rndcv4k.pcnm_amphibian[[i]],
+                                 data.valnwbg.amphibian[[i]][[1]],
+                                                   fun = "mean",
+                                                   type = "cloglog")),
+                                list(SDMtune::predict(model_rndcv4k.pcnm_amphibian[[i]]@models[[2]], 
+                                                  data.val.amphibian[[i]][[2]],
+                                                  fun = "mean",
+                                                  type = "cloglog"),
+                                 SDMtune::predict(model_rndcv4k.pcnm_amphibian[[i]],
+                                 data.valnwbg.amphibian[[i]][[2]],
+                                                   fun = "mean",
+                                                   type = "cloglog")),
+                                list(SDMtune::predict(model_rndcv4k.pcnm_amphibian[[i]]@models[[3]], 
+                                                  data.val.amphibian[[i]][[3]],
+                                                  fun = "mean",
+                                                  type = "cloglog"),
+                                 SDMtune::predict(model_rndcv4k.pcnm_amphibian[[i]],
+                                 data.valnwbg.amphibian[[i]][[3]],
+                                                   fun = "mean",
+                                                   type = "cloglog")),
+                                list(SDMtune::predict(model_rndcv4k.pcnm_amphibian[[i]]@models[[4]], 
+                                                  data.val.amphibian[[i]][[4]],
+                                                  fun = "mean",
+                                                  type = "cloglog"),
+                                 SDMtune::predict(model_rndcv4k.pcnm_amphibian[[i]],
+                                 data.valnwbg.amphibian[[i]][[4]],
+                                                   fun = "mean",
+                                                   type = "cloglog")))}
+```
+
+validation to spatial amphibian pcnm
+```{r}
+val_spcv4k.pcnm_amphibian <- list()
+for(i in 1:length(model_spcv4k.pcnm_amphibian)){
+val_spcv4k.pcnm_amphibian[[i]] <- list(list(SDMtune::predict(model_spcv4k.pcnm_amphibian[[i]]@models[[1]], 
+                                                  data.val.sp.amphibian[[i]][[1]],
+                                                  fun = "mean",
+                                                  type = "cloglog"),
+                                 SDMtune::predict(model_spcv4k.pcnm_amphibian[[i]],
+                                 data.valnwbg.sp.amphibian[[i]][[1]],
+                                                   fun = "mean",
+                                                   type = "cloglog")),
+                                list(SDMtune::predict(model_spcv4k.pcnm_amphibian[[i]]@models[[2]], 
+                                                  data.val.sp.amphibian[[i]][[2]],
+                                                  fun = "mean",
+                                                  type = "cloglog"),
+                                 SDMtune::predict(model_spcv4k.pcnm_amphibian[[i]],
+                                 data.valnwbg.sp.amphibian[[i]][[2]],
+                                                   fun = "mean",
+                                                   type = "cloglog")),
+                                list(SDMtune::predict(model_spcv4k.pcnm_amphibian[[i]]@models[[3]], 
+                                                  data.val.sp.amphibian[[i]][[3]],
+                                                  fun = "mean",
+                                                  type = "cloglog"),
+                                 SDMtune::predict(model_spcv4k.pcnm_amphibian[[i]],
+                                 data.valnwbg.sp.amphibian[[i]][[3]],
+                                                   fun = "mean",
+                                                   type = "cloglog")),
+                                list(SDMtune::predict(model_spcv4k.pcnm_amphibian[[i]]@models[[4]], 
+                                                  data.val.sp.amphibian[[i]][[4]],
+                                                  fun = "mean",
+                                                  type = "cloglog"),
+                                 SDMtune::predict(model_spcv4k.pcnm_amphibian[[i]],
+                                 data.valnwbg.sp.amphibian[[i]][[4]],
+                                                   fun = "mean",
+                                                   type = "cloglog")))}
+```
+
+
+boyce result of rnd cv
+```{r}
+boyce.val.rnd_mammal <- list()
+for(i in 1:length(val_rndcv4k_mammal)){boyce.val.rnd_mammal[[i]] <- 
+                    list(my.boyce(val_rndcv4k_mammal[[i]][[1]][[2]], val_rndcv4k_mammal[[i]][[1]][[1]]),
+                        my.boyce(val_rndcv4k_mammal[[i]][[2]][[2]], val_rndcv4k_mammal[[i]][[2]][[1]]),
+                        my.boyce(val_rndcv4k_mammal[[i]][[3]][[2]], val_rndcv4k_mammal[[i]][[3]][[1]]),
+                        my.boyce(val_rndcv4k_mammal[[i]][[4]][[2]], val_rndcv4k_mammal[[i]][[4]][[1]]))
+}
+```
+
+boyce result of spatial block cv
+```{r}
+boyce.val.sp_mammal <- list()
+for(i in 1:length(val_spcv4k_mammal)){boyce.val.sp_mammal[[i]] <- 
+                    list(my.boyce(val_spcv4k_mammal[[i]][[1]][[2]], val_spcv4k_mammal[[i]][[1]][[1]]),
+                        my.boyce(val_spcv4k_mammal[[i]][[2]][[2]], val_spcv4k_mammal[[i]][[2]][[1]]),
+                        my.boyce(val_spcv4k_mammal[[i]][[3]][[2]], val_spcv4k_mammal[[i]][[3]][[1]]),
+                        my.boyce(val_spcv4k_mammal[[i]][[4]][[2]], val_spcv4k_mammal[[i]][[4]][[1]]))
+}
+```
+
+boyce result of environmental block cv
+```{r}
+boyce.val.env_mammal <- list()
+for(i in 1:length(val_envcv4k_mammal)){boyce.val.env_mammal[[i]] <- 
+                    list(my.boyce(val_envcv4k_mammal[[i]][[1]][[2]], val_envcv4k_mammal[[i]][[1]][[1]]),
+                        my.boyce(val_envcv4k_mammal[[i]][[2]][[2]], val_envcv4k_mammal[[i]][[2]][[1]]),
+                        my.boyce(val_envcv4k_mammal[[i]][[3]][[2]], val_envcv4k_mammal[[i]][[3]][[1]]),
+                        my.boyce(val_envcv4k_mammal[[i]][[4]][[2]], val_envcv4k_mammal[[i]][[4]][[1]]))
+}
+```
+
+
+```{r}
+boyce.val.rnd.pcnm_amphibian <- list()
+for(i in 1:length(val_rndcv4k.pcnm_amphibian)){boyce.val.rnd.pcnm_amphibian[[i]] <- 
+                    list(my.boyce(val_rndcv4k.pcnm_amphibian[[i]][[1]][[2]], val_rndcv4k.pcnm_amphibian[[i]][[1]][[1]]),
+                        my.boyce(val_rndcv4k.pcnm_amphibian[[i]][[2]][[2]], val_rndcv4k.pcnm_amphibian[[i]][[2]][[1]]),
+                        my.boyce(val_rndcv4k.pcnm_amphibian[[i]][[3]][[2]], val_rndcv4k.pcnm_amphibian[[i]][[3]][[1]]),
+                        my.boyce(val_rndcv4k.pcnm_amphibian[[i]][[4]][[2]], val_rndcv4k.pcnm_amphibian[[i]][[4]][[1]]))
+}
+```
+
+
+
+```{r}
+boyce.val.sp.pcnm_amphibian <- list()
+for(i in 1:length(val_spcv4k.pcnm_amphibian)){boyce.val.sp.pcnm_amphibian[[i]] <- 
+                    list(my.boyce(val_spcv4k.pcnm_amphibian[[i]][[1]][[2]], val_spcv4k.pcnm_amphibian[[i]][[1]][[1]]),
+                        my.boyce(val_spcv4k.pcnm_amphibian[[i]][[2]][[2]], val_spcv4k.pcnm_amphibian[[i]][[2]][[1]]),
+                        my.boyce(val_spcv4k.pcnm_amphibian[[i]][[3]][[2]], val_spcv4k.pcnm_amphibian[[i]][[3]][[1]]),
+                        my.boyce(val_spcv4k.pcnm_amphibian[[i]][[4]][[2]], val_spcv4k.pcnm_amphibian[[i]][[4]][[1]]))
+}
+```
+
+df for ggplot2 
+```{r}
+df.boyce.val.rnd_mammal <- list()
+for(i in 1:35){df.boyce.val.rnd_mammal[[i]] <- rbind(data.frame(Hs = boyce.val.rnd_mammal[[i]][[1]]$HS,
+                                                            F.ratio = boyce.val.rnd_mammal[[i]][[1]]$F.ratio,
+                                                            model = "m1",
+                                                            species = data.mammal[[i]]@species),
+                                                 data.frame(Hs = boyce.val.rnd_mammal[[i]][[2]]$HS,
+                                                            F.ratio = boyce.val.rnd_mammal[[i]][[2]]$F.ratio,
+                                                            model = "m2",
+                                                            species = data.mammal[[i]]@species),
+                                                 data.frame(Hs = boyce.val.rnd_mammal[[i]][[3]]$HS,
+                                                            F.ratio = boyce.val.rnd_mammal[[i]][[3]]$F.ratio,
+                                                            model = "m3",
+                                                            species = data.mammal[[i]]@species),
+                                                 data.frame(Hs = boyce.val.rnd_mammal[[i]][[4]]$HS,
+                                                            F.ratio = boyce.val.rnd_mammal[[i]][[4]]$F.ratio,
+                                                            model = "m4",
+                                                            species = data.mammal[[i]]@species))}
+
+
+df.boyce.val.rnd_mammal2 <- do.call(rbind, df.boyce.val.rnd_mammal)
+
+```
+
+
+
+
+
+```{r}
+df.boyce.val.sp_mammal <- list()
+for(i in 1:35){df.boyce.val.sp_mammal[[i]] <- rbind(data.frame(Hs = boyce.val.sp_mammal[[i]][[1]]$HS,
+                                                            F.ratio = boyce.val.sp_mammal[[i]][[1]]$F.ratio,
+                                                            model = "m1",
+                                                            species = data.mammal[[i]]@species),
+                                                 data.frame(Hs = boyce.val.sp_mammal[[i]][[2]]$HS,
+                                                            F.ratio = boyce.val.sp_mammal[[i]][[2]]$F.ratio,
+                                                            model = "m2",
+                                                            species = data.mammal[[i]]@species),
+                                                 data.frame(Hs = boyce.val.sp_mammal[[i]][[3]]$HS,
+                                                            F.ratio = boyce.val.sp_mammal[[i]][[3]]$F.ratio,
+                                                            model = "m3",
+                                                            species = data.mammal[[i]]@species),
+                                                 data.frame(Hs = boyce.val.sp_mammal[[i]][[4]]$HS,
+                                                            F.ratio = boyce.val.sp_mammal[[i]][[4]]$F.ratio,
+                                                            model = "m4",
+                                                            species = data.mammal[[i]]@species))}
+
+for(i in 1:35){df.boyce.val.sp_mammal[[i]] <- rbind(data.frame(Hs = boyce.val.sp_mammal[[i]][[1]]$HS,
+                                                            F.ratio = boyce.val.sp_mammal[[i]][[1]]$F.ratio,
+                                                            model = "m1",
+                                                            species = data.mammal[[i]]@species),
+                                                 data.frame(Hs = boyce.val.sp_mammal[[i]][[2]]$HS,
+                                                            F.ratio = boyce.val.sp_mammal[[i]][[2]]$F.ratio,
+                                                            model = "m2",
+                                                            species = data.mammal[[i]]@species),
+                                                 data.frame(Hs = boyce.val.sp_mammal[[i]][[3]]$HS,
+                                                            F.ratio = boyce.val.sp_mammal[[i]][[3]]$F.ratio,
+                                                            model = "m3",
+                                                            species = data.mammal[[i]]@species),
+                                                 data.frame(Hs = boyce.val_mammal[[i]][[4]]$HS,
+                                                            F.ratio = boyce.val.sp_mammal[[i]][[4]]$F.ratio,
+                                                            model = "m4",
+                                                            species = data.mammal[[i]]@species))}
+
+df.boyce.val.sp_mammal2 <- do.call(rbind, df.boyce.val.sp_mammal)
+
+```
+
+
+
+df for test
+```{r}
+df.boyce.test.rndsp_mammal <- list()
+for(i in 1:35){df.boyce.test.rndsp_mammal[[i]] <- rbind(data.frame(Hs = boyce.test.rnd_mammal[[i]]$HS,
+                                                                F.ratio = boyce.test.rnd_mammal[[i]]$F.ratio,
+                                                                model = "random",
+                                                                species = data.mammal[[i]]@species),
+                                                      data.frame(Hs= boyce.test.sp_mammal[[i]]$HS,
+                                                               F.ratio = boyce.test.sp_mammal[[i]]$F.ratio,
+                                                                model = "spatial",
+                                                                species = data.mammal[[i]]@species))
+}
+
+df.boyce.test.rndsp_mammal2 <- do.call(rbind, df.boyce.test.rndsp_mammal)         df.boyce.test.rndsp_mammal2[df.boyce.test.rndsp_mammal2$species == "Macritos lagotis",] # stupid lagotis                          
+```
+
+df test bioclimate reptile n amphibian 
+
+```{r}
+df.boyce.test.rndsp_reptile <- list()
+for(i in 1:91){df.boyce.test.rndsp_reptile[[i]] <- rbind(data.frame(Hs = boyce.test.rnd_reptile[[i]]$HS,
+                                                                F.ratio = boyce.test.rnd_reptile[[i]]$F.ratio,
+                                                                model = "random",
+                                                                taxa = "reptile",
+                                                                species = model_rndcv4k_reptile[[i]]@data@species),
+                                                      data.frame(Hs= boyce.test.sp_reptile[[i]]$HS,
+                                                               F.ratio = boyce.test.sp_reptile[[i]]$F.ratio,
+                                                                model = "spatial",
+                                                                taxa = "reptile",
+                                                                species = model_spcv4k_reptile[[i]]@data@species))}
+
+df.boyce.test.rndsp_reptile2 <- do.call(rbind, df.boyce.test.rndsp_reptile)    
+
+df.boyce.test.rndsp_amphibian <- list()
+for(i in 1:50){df.boyce.test.rndsp_amphibian[[i]] <- rbind(data.frame(Hs = boyce.test.rnd_amphibian[[i]]$HS,
+                                                                F.ratio = boyce.test.rnd_amphibian[[i]]$F.ratio,
+                                                                model = "random",
+                                                                taxa = "amphibian",
+                                                                species = model_rndcv4k_amphibian[[i]]@data@species),
+                                                      data.frame(Hs= boyce.test.sp_amphibian[[i]]$HS,
+                                                               F.ratio = boyce.test.sp_amphibian[[i]]$F.ratio,
+                                                                model = "spatial",
+                                                                taxa = "amphibian",
+                                                                species = model_spcv4k_amphibian[[i]]@data@species))
+}
+
+df.boyce.test.rndsp_amphibian2 <- do.call(rbind, df.boyce.test.rndsp_amphibian)
+
+```
+
+
+
+
+df test PCNM reptile n amphibian
+
+```{r}
+df.boyce.test.rndsp.pcnm_reptile <- list()
+for(i in 29:65){df.boyce.test.rndsp.pcnm_reptile[[i]] <- rbind(data.frame(Hs = boyce.test.rnd.pcnm_reptile[[i]]$HS,
+                                                                F.ratio = boyce.test.rnd.pcnm_reptile[[i]]$F.ratio,
+                                                                model = "random",
+                                                                taxa = "reptile",
+                                                                species = model_rndcv4k.pcnm_reptile[[i]]@data@species),
+                                                      data.frame(Hs= boyce.test.sp.pcnm_reptile[[i]]$HS,
+                                                               F.ratio = boyce.test.sp.pcnm_reptile[[i]]$F.ratio,
+                                                                model = "spatial",
+                                                                taxa = "reptile",
+                                                                species = model_spcv4k.pcnm_reptile[[i]]@data@species))}
+
+df.boyce.test.rndsp.pcnm_reptile2 <- do.call(rbind, df.boyce.test.rndsp.pcnm_reptile)    
+
+df.boyce.test.rndsp.pcnm_amphibian <- list()
+for(i in 14:32){df.boyce.test.rndsp.pcnm_amphibian[[i]] <- rbind(data.frame(Hs = boyce.test.rnd.pcnm_amphibian[[i]]$HS,
+                                                                F.ratio = boyce.test.rnd.pcnm_amphibian[[i]]$F.ratio,
+                                                                model = "random",
+                                                                taxa = "amphibian",
+                                                                species = model_rndcv4k.pcnm_amphibian[[i]]@data@species),
+                                                      data.frame(Hs= boyce.test.sp.pcnm_amphibian[[i]]$HS,
+                                                               F.ratio = boyce.test.sp.pcnm_amphibian[[i]]$F.ratio,
+                                                                model = "spatial",
+                                                                taxa = "amphibian",
+                                                                species = model_spcv4k.pcnm_amphibian[[i]]@data@species))
+}
+
+df.boyce.test.rndsp.pcnm_amphibian2 <- do.call(rbind, df.boyce.test.rndsp.pcnm_amphibian)
+
+```
+
+GGPLOT 
+RND : BIO vs PCNM :TEST
+
+bio rep 91
+bio amp 50
+pcnm rep 65
+pcnm amp 32
+
+
+
+```{r}
+
+unique(df.boyce.test.rndsp_reptile2$species)
+unique(df.boyce.test.rndsp.pcnm_reptile2$species)
+
+unique(df.boyce.test.rndsp_amphibian2$species)
+unique(df.boyce.test.rndsp.pcnm_amphibian2$species)
+
+a <- vector()
+for(i in 1:length(unique(df.boyce.test.rndsp.pcnm_reptile2$species))){
+  a[i] <- unique(df.boyce.test.rndsp.pcnm_reptile2$species)[i]
+}
+
+b <- list()
+for(i in 1:length(a)){
+df.boyce.test.rndsp_reptile2 %>% filter(species == a[i]) -> b[[i]]
+}
+
+b <- do.call(rbind, b)
+
+
+c <- vector()
+for(i in 1:length(unique(df.boyce.test.rndsp.pcnm_amphibian2$species))){
+  c[i] <- unique(df.boyce.test.rndsp.pcnm_amphibian2$species)[i]
+}
+
+d <- list()
+for(i in 1:length(c)){
+df.boyce.test.rndsp_amphibian2 %>% filter(species == c[i]) -> d[[i]]
+}
+
+d <- do.call(rbind, d)
+
+
+which(unique(b$species) != unique(df.boyce.test.rndsp.pcnm_reptile2$species))
+which(unique(d$species) != unique(df.boyce.test.rndsp.pcnm_amphibian2$species))
+```
+b & d got good set 
+
+now all 65, 32
+
+
+Boyce comparison with SEVM and BIOclimate under RANDOM CV
+```{r}
+rbind(b %>% filter(model == "random") %>% mutate(variable = "bio"),
+      d %>% filter(model == "random") %>% mutate(variable = "bio"),
+      df.boyce.test.rndsp.pcnm_reptile2 %>% filter(model == "random") %>% mutate(variable = "PCNM"),
+      df.boyce.test.rndsp.pcnm_amphibian2 %>% filter(model == "random") %>% mutate(variable = "PCNM")) %>%
+  ggplot(data = .) +
+      geom_line(aes(x = Hs, y = F.ratio, color = variable), size = 1) +
+      geom_hline(yintercept=1, linetype="dashed") +
+      facet_wrap( ~ species, scale = "free") +
+      labs(title = "Boyce P/E plot(Random cv REPTILE and Amphibian)",
+           y = "출현/기대 비율",
+           x = "서식처 적합도",
+           size = 15) +
+      theme_light() +
+      theme(strip.text.x = element_text(size = 9, colour = "black"),
+        strip.background = element_rect(colour="gray",
+                                        fill="white")) -> plot.boyce.rnd.test.BvP_repamp
+
+
+```
+
+
+Boyce comparison with SEVM and BIOclimate under Spatial CV
+```{r}
+rbind(b %>% filter(model == "spatial") %>% mutate(variable = "bio"),
+      d %>% filter(model == "spatial") %>% mutate(variable = "bio"),
+      df.boyce.test.rndsp.pcnm_reptile2 %>% filter(model == "spatial") %>% mutate(variable = "PCNM"),
+      df.boyce.test.rndsp.pcnm_amphibian2 %>% filter(model == "spatial") %>% mutate(variable = "PCNM")) %>%
+  ggplot(data = .) +
+      geom_line(aes(x = Hs, y = F.ratio, color = variable), size = 1) +
+      geom_hline(yintercept=1, linetype="dashed") +
+      facet_wrap( ~ species, scale = "free") +
+      labs(title = "Boyce P/E plot(Spatial cv REPTILE and Amphibian)",
+           y = "출현/기대 비율",
+           x = "서식처 적합도",
+           size = 15) +
+      theme_light() +
+      theme(strip.text.x = element_text(size = 9, colour = "black"),
+        strip.background = element_rect(colour="gray",
+                                        fill="white")) -> plot.boyce.sp.test.BvP_repamp
+
+
+```
+
+ALL TOGETHER
+```{r}
+rbind(b %>% mutate(variable = "bio"),
+      d %>% mutate(variable = "bio"),
+      df.boyce.test.rndsp.pcnm_reptile2 %>% mutate(variable = "PCNM"),
+      df.boyce.test.rndsp.pcnm_amphibian2 %>% mutate(variable = "PCNM")) %>%
+  ggplot(data = .) +
+      geom_line(aes(x = Hs, y = F.ratio, color = variable, linetype = model), size = 1) +
+      geom_hline(yintercept=1, linetype="dashed") +
+      facet_wrap( ~ species, scale = "free") +
+      labs(title = "Boyce P/E plot(REPTILE and Amphibian)",
+           y = "출현/기대 비율",
+           x = "서식처 적합도",
+           size = 15) +
+      theme_light() +
+      theme(strip.text.x = element_text(size = 9, colour = "black"),
+        strip.background = element_rect(colour="gray",
+                                        fill="white")) -> plot.boyce.rndsp.test.BvP_repamp
+
+
+```
+
+ALL TOGETHER - RETPILE
+```{r}
+rbind(b %>% mutate(variable = "bio"),
+      df.boyce.test.rndsp.pcnm_reptile2 %>% mutate(variable = "PCNM")) %>%
+  ggplot(data = .) +
+      geom_line(aes(x = Hs, y = F.ratio, color = variable, linetype = model), size = 1) +
+      geom_hline(yintercept=1, linetype="dashed") +
+      facet_wrap( ~ species, scale = "free") +
+      labs(title = "Boyce P/E plot(Reptile)",
+           y = "출현/기대 비율",
+           x = "서식처 적합도",
+           size = 15) +
+      theme_light() +
+      theme(strip.text.x = element_text(size = 9, colour = "black"),
+        strip.background = element_rect(colour="gray",
+                                        fill="white")) -> plot.boyce.rndsp.test.BvP_reptile #8, 11,12,16,31,32, 47,51,53
+
+nice.name <- vector()
+for(i in c(8, 11,12,17,26,34,35 ,57,59)){
+  nice.name[i] <- model_rndcv4k.pcnm_reptile[[i]]@data@species
+}
+nice.name <- na.omit(nice.name)
+
+nice.df <- list()
+for(i in 1:length(nice.name)){
+ nice.df[[i]]  <- filter(rbind(b %>% mutate(variable = "bio"),
+      df.boyce.test.rndsp.pcnm_reptile2 %>% mutate(variable = "PCNM")), species == nice.name[i])
+}
+nice.df <- do.call(rbind, nice.df)
+
+ggplot(data = nice.df) +
+      geom_line(aes(x = Hs, y = F.ratio, color = variable, linetype = model), size = 1) +
+      geom_hline(yintercept=1, linetype="dashed") +
+      facet_wrap( ~ species, scale = "free") +
+      labs(title = "Boyce P/E plot(Reptile)",
+           y = "출현/기대 비율",
+           x = "서식처 적합도",
+           size = 15) +
+      theme_light() +
+      theme(strip.text.x = element_text(size = 9, colour = "black"),
+        strip.background = element_rect(colour="gray",
+                                        fill="white")) -> plot.boyce.rndsp.test.BvP_reptile.nice
+
+
+```
+
+ALL TOGETHER - AMPHIBIAN
+```{r}
+rbind(d %>% mutate(variable = "bio"),
+      df.boyce.test.rndsp.pcnm_amphibian2 %>% mutate(variable = "PCNM")) %>%
+  ggplot(data = .) +
+      geom_line(aes(x = Hs, y = F.ratio, color = variable, linetype = model), size = 1) +
+      geom_hline(yintercept=1, linetype="dashed") +
+      facet_wrap( ~ species, scale = "free") +
+      labs(title = "Boyce P/E plot(Amphibian)",
+           y = "출현/기대 비율",
+           x = "서식처 적합도",
+           size = 15) +
+      theme_light() +
+      theme(strip.text.x = element_text(size = 9, colour = "black"),
+        strip.background = element_rect(colour="gray",
+                                        fill="white")) -> plot.boyce.rndsp.test.BvP_amphibian #2, 3, 5, 7, 8, 12, 19, 21, 26 look nice
+
+nice.name <- vector()
+for(i in c(2, 3, 5, 7, 8, 12, 19, 21, 26)){
+  nice.name[i] <- model_rndcv4k.pcnm_amphibian[[i]]@data@species
+}
+nice.name <- na.omit(nice.name)
+
+nice.df <- list()
+for(i in 1:length(nice.name)){
+ nice.df[[i]]  <- filter(rbind(d %>% mutate(variable = "bio"),
+      df.boyce.test.rndsp.pcnm_amphibian2 %>% mutate(variable = "PCNM")), species == nice.name[i])
+}
+nice.df <- do.call(rbind, nice.df)
+
+ggplot(data = nice.df) +
+      geom_line(aes(x = Hs, y = F.ratio, color = variable, linetype = model), size = 1) +
+      geom_hline(yintercept=1, linetype="dashed") +
+      facet_wrap( ~ species, scale = "free") +
+      labs(title = "Boyce P/E plot(Amphibian)",
+           y = "출현/기대 비율",
+           x = "서식처 적합도",
+           size = 15) +
+      theme_light() +
+      theme(strip.text.x = element_text(size = 9, colour = "black"),
+        strip.background = element_rect(colour="gray",
+                                        fill="white")) -> plot.boyce.rndsp.test.BvP_amphibian.nice
+
+
+
+
+
+```
+
+
+what if mix rnd and sp
+```{r}
+rbind(
+  mutate(df.boyce.val.rnd_mammal2, cv = "random"), 
+  mutate(df.boyce.val.sp_mammal2, cv = "spatial")) %>% 
+ ggplot(data = .) +
+      geom_smooth(aes(x = Hs, y = F.ratio, color = cv), size = 1) +
+      geom_hline(yintercept=1, linetype="dashed") +
+      facet_wrap( ~ species, scale = "free") +
+      labs(title = "Boyce P/E plot(Random-Spatial cv mammal)",
+           y = "출현/기대 비율",
+           x = "서식처 적합도",
+           size = 15) +
+      theme_light() +
+      theme(strip.text.x = element_text(size = 11, colour = "black"),
+        strip.background = element_rect(colour="gray",
+                                        fill="white")) -> plot.boyce.rndsp.val_mammal
+
+plot.boyce.rndsp.val_mammal
+```
+
+
+
+
+
+```{r}
+plot.boyce.rndsp.test.mean_mammal <- ggplot(data = df.boyce.test.rndsp_mammal2[df.boyce.test.rndsp_mammal2$species != "Macrotis lagotis",]) +
+      geom_line(aes(x = Hs, y = F.ratio, color = model), size = 1) +
+      geom_hline(yintercept=1, linetype="dashed") +
+      facet_wrap( ~ species, scale = "free") +
+      labs(title = "Boyce P/E plot(Random-Spatial cv mammal for Test data)",
+           subtitle = "Mean of 4 model",
+           y = "출현/기대 비율",
+           x = "서식처 적합도",
+           size = 15) +
+      theme_light() +
+      theme(strip.text.x = element_text(size = 11, colour = "black"),
+        strip.background = element_rect(colour="gray",
+                                        fill="white"))
+
+plot.boyce.rndsp.test.mean_mammal
+```
+
+PCNM rndsp reptile
+
+```{r}
+plot.boyce.rndsp.test.pcnm_reptile <- ggplot(data = df.boyce.test.rndsp.pcnm_reptile2) +
+      geom_line(aes(x = Hs, y = F.ratio, color = model), size = 1) +
+      geom_hline(yintercept=1, linetype="dashed") +
+      facet_wrap( ~ species, scale = "free") +
+      labs(title = "Boyce P/E plot(Random-Spatial cv REPTILE for Test data)",
+           subtitle = "Mean of 4 model, 5 Bioclimate, 14 PCNM",
+           y = "출현/기대 비율",
+           x = "서식처 적합도",
+           size = 15) +
+      theme_light() +
+      theme(strip.text.x = element_text(size = 11, colour = "black"),
+        strip.background = element_rect(colour="gray",
+                                        fill="white"))
+
+plot.boyce.rndsp.test.pcnm_reptile
+```
+
+plot PCNM amphibian
+
+```{r}
+plot.boyce.rndsp.test.pcnm_amphibian <- ggplot(data = df.boyce.test.rndsp.pcnm_amphibian2) +
+      geom_line(aes(x = Hs, y = F.ratio, color = model), size = 1) +
+      geom_hline(yintercept=1, linetype="dashed") +
+      facet_wrap( ~ species, scale = "free") +
+      labs(title = "Boyce P/E plot(Random-Spatial cv amphibian for Test data)",
+           subtitle = "Mean of 4 model, 5 Bioclimate, 14 PCNM",
+           y = "출현/기대 비율",
+           x = "서식처 적합도",
+           size = 15) +
+      theme_light() +
+      theme(strip.text.x = element_text(size = 11, colour = "black"),
+        strip.background = element_rect(colour="gray",
+                                        fill="white"))
+
+plot.boyce.rndsp.test.pcnm_amphibian 
+
+```
+
+
+
+
+
+
+
+
+```{r}
+plot.boyce.rndsp.test.notmean_mammal <- ggplot(data = df.boyce.test.rndsp.notmean_mammal2) +
+      geom_smooth(aes(x = Hs, y = F.ratio, color = model), size = 1) +
+      geom_hline(yintercept=1, linetype="dashed") +
+      facet_wrap( ~ species, scale = "free") +
+      labs(title = "Boyce P/E plot(Random-Spatial cv mammal for Test data)",
+           y = "출현/기대 비율",
+           x = "서식처 적합도") +
+      theme_light() +
+      theme(strip.text.x = element_text(size = 11, colour = "black"),
+        strip.background = element_rect(colour="gray",
+                                        fill="white"))
+
+plot.boyce.rndsp.test.notmean_mammal
+```
+
+
+
+```{r} 
+#df.boyce.val_mammal2[4692, ] <- NA
+#some rows are inf 
+```
+
+df for pcnm val plot
+```{r}
+df.boyce.val.rnd.pcnm_amphibian <- list()
+for(i in 1:34){df.boyce.val.rnd.pcnm_amphibian[[i]] <- rbind(data.frame(Hs = boyce.val.rnd.pcnm_amphibian[[i]][[1]]$HS,
+                                                            F.ratio = boyce.val.rnd.pcnm_amphibian[[i]][[1]]$F.ratio,
+                                                            model = "m1",
+                                                            species = data.amphibian[[i]]@species),
+                                                 data.frame(Hs = boyce.val.rnd.pcnm_amphibian[[i]][[2]]$HS,
+                                                            F.ratio = boyce.val.rnd.pcnm_amphibian[[i]][[2]]$F.ratio,
+                                                            model = "m2",
+                                                            species = data.amphibian[[i]]@species),
+                                                 data.frame(Hs = boyce.val.rnd.pcnm_amphibian[[i]][[3]]$HS,
+                                                            F.ratio = boyce.val.rnd.pcnm_amphibian[[i]][[3]]$F.ratio,
+                                                            model = "m3",
+                                                            species = data.amphibian[[i]]@species),
+                                                 data.frame(Hs = boyce.val.rnd.pcnm_amphibian[[i]][[4]]$HS,
+                                                            F.ratio = boyce.val.rnd.pcnm_amphibian[[i]][[4]]$F.ratio,
+                                                            model = "m4",
+                                                            species = data.amphibian[[i]]@species))}
+
+
+
+df.boyce.val.rnd.pcnm_amphibian2 <- do.call(rbind, df.boyce.val.rnd.pcnm_amphibian)
+
+```
+
+
+```{r}
+df.boyce.val.sp.pcnm_amphibian <- list()
+for(i in 1:30){df.boyce.val.sp.pcnm_amphibian[[i]] <- rbind(data.frame(Hs = boyce.val.sp.pcnm_amphibian[[i]][[1]]$HS,
+                                                            F.ratio = boyce.val.sp.pcnm_amphibian[[i]][[1]]$F.ratio,
+                                                            model = "m1",
+                                                            species = data.amphibian.pcnm[[i]]@species),
+                                                 data.frame(Hs = boyce.val.sp.pcnm_amphibian[[i]][[2]]$HS,
+                                                            F.ratio = boyce.val.sp.pcnm_amphibian[[i]][[2]]$F.ratio,
+                                                            model = "m2",
+                                                            species = data.amphibian.pcnm[[i]]@species),
+                                                 data.frame(Hs = boyce.val.sp.pcnm_amphibian[[i]][[3]]$HS,
+                                                            F.ratio = boyce.val.sp.pcnm_amphibian[[i]][[3]]$F.ratio,
+                                                            model = "m3",
+                                                            species = data.amphibian.pcnm[[i]]@species),
+                                                 data.frame(Hs = boyce.val.sp.pcnm_amphibian[[i]][[4]]$HS,
+                                                            F.ratio = boyce.val.sp.pcnm_amphibian[[i]][[4]]$F.ratio,
+                                                            model = "m4",
+                                                            species = data.amphibian.pcnm[[i]]@species))}
+
+
+
+df.boyce.val.sp.pcnm_amphibian2 <- do.call(rbind, df.boyce.val.sp.pcnm_amphibian)
+```
+
+
+```{r}
+p1 <- ggplot(data = df.boyce.val_mammal2) +
+      geom_line(aes(x = Hs, y = F.ratio, color = model)) +
+      geom_hline(yintercept=1, linetype="dashed") +
+      facet_wrap( ~ species, scale = "free") +
+      labs(title = "Boyce P/E plot",
+           y = "출현/기대 비율",
+           x = "서식처 적합도") +
+      theme_light() +
+      theme(strip.text.x = element_text(size = 8, colour = "black"),
+        strip.background = element_rect(colour="gray",
+                                        fill="white"))
+
+p1
+```
+
+```{r}
+plot.boyce.rnd.val_mammal <- ggplot(data = df.boyce.val.rnd_mammal2) +
+      
+      geom_smooth(aes(x = Hs, y = F.ratio)) +
+      geom_hline(yintercept=1, linetype="dashed") +
+      facet_wrap( ~ species, scale = "free") +
+      labs(title = "Boyce P/E plot(Random cv mammal)",
+           y = "출현/기대 비율",
+           x = "서식처 적합도") +
+      theme_light() +
+      theme(strip.text.x = element_text(size = 8, colour = "black"),
+        strip.background = element_rect(colour="gray",
+                                        fill="white"))
+
+plot.boyce.rnd.val_mammal
+```
+
+
+```{r}
+plot.boyce.sp.val_mammal <- ggplot(data = df.boyce.val.sp_mammal2) +
+                            geom_line(aes(x = Hs, y = F.ratio, color = model)) +
+                            geom_hline(yintercept=1, linetype="dashed") +
+                            facet_wrap( ~ species, scale = "free") +
+                            labs(title = "Boyce P/E plot with Spatial block cross validation",
+                                 y = "출현/기대 비율",
+                                 x = "서식처 적합도") +
+                            theme_light() +
+                            theme(strip.text.x = element_text(size = 8, colour = "black"),
+                              strip.background = element_rect(colour="gray",
+                                                              fill="white"))
+
+plot.boyce.sp.val_mammal
+```
+
+
+```{r}
+plot.boyce.rnd.val.pcnm_amphibian <- ggplot(data = df.boyce.val.rnd.pcnm_amphibian2) +
+                            geom_line(aes(x = Hs, y = F.ratio, color = model)) +
+                            geom_hline(yintercept=1, linetype="dashed") +
+                            facet_wrap( ~ species, scale = "free") +
+                            labs(title = "Boyce P/E plot with Spatial block cross validation",
+                                 y = "출현/기대 비율",
+                                 x = "서식처 적합도") +
+                            theme_light() +
+                            theme(strip.text.x = element_text(size = 8, colour = "black"),
+                              strip.background = element_rect(colour="gray",
+                                                              fill="white"))
+
+plot.boyce.rnd.val.pcnm_amphibian
+```
+
+
+```{r}
+plot.boyce.sp.val.pcnm_amphibian <- ggplot(data = df.boyce.val.sp.pcnm_amphibian2) +
+                            geom_line(aes(x = Hs, y = F.ratio, color = model)) +
+                            geom_hline(yintercept=1, linetype="dashed") +
+                            facet_wrap( ~ species, scale = "free") +
+                            labs(title = "Boyce P/E plot with Spatial block cross validation",
+                                 y = "출현/기대 비율",
+                                 x = "서식처 적합도") +
+                            theme_light() +
+                            theme(strip.text.x = element_text(size = 8, colour = "black"),
+                              strip.background = element_rect(colour="gray",
+                                                              fill="white"))
+
+plot.boyce.sp.val.pcnm_amphibian
+```
+```{r}
+test_spcv4k.pcnm_amphibian <- list()
+for(i in 1:length(model_spcv4k.pcnm_amphibian)){
+test_spcv4k.pcnm_amphibian[[i]] <- list(SDMtune::predict(model_spcv4k.pcnm_amphibian[[i]], 
+                                                  t.t.amphibian_0.2.test[[i]][[2]],
+                                                  fun = "mean",
+                                                  type = "cloglog"),
+                                 SDMtune::predict(model_spcv4k.pcnm_amphibian[[i]],
+                                 t.t.amphibian_0.2.test[[i]][[2]]@data[t.t.amphibian_0.2.test[[i]][[2]]@pa == 1,],
+                                                   fun = "mean",
+                                                   type = "cloglog"))} #전부다는 [[1]]에, 출현은 [[2]]에
+```
+
+```{r}
+t.t.amphibian_0.2.test <- t.t.amphibian_0.2.test[-10]
+t.t.amphibian_0.2.test <- t.t.amphibian_0.2.test[-22]
+
+```
+
+
+
+```{r}
+a <- pocplot(pred = poc.df_rndcv4k_mammal[[1]][[2]], 
+             back = poc.df_rndcv4k_mammal[[1]][[1]], 
+             title="(a) Model 2", filename="figs/forfun.png", linearize=FALSE)
+```
+
+
+
+```{r}
+ggsave("mammal_boyce.png", p1, width = 50, height = 25, dpi = 200, limitsize = F)
+ggsave("boyce.sp.val_mammal2.png", plot.boyce.sp.val_mammal, width = 50, height = 25, dpi = 200, limitsize = F)
+ggsave("plot.boyce.rndsp.val_mammal.png", plot.boyce.rndsp.val_mammal, width = 50, height = 25, dpi = 200, limitsize = F)
+ggsave("plot.boyce.rndsp.test.mean_mammal.png", plot.boyce.rndsp.test_mammal, width = 50, height = 25, dpi = 200, limitsize = F)
+ggsave("plot.boyce.rndsp.test.notmean_mammal.png", plot.boyce.rndsp.test.notmean_mammal, width = 50, height = 25, dpi = 200, limitsize = F)
+ggsave("plot.boyce.rnd.test.BvP_repamp.png", plot.boyce.rnd.test.BvP_repamp, width = 50, height = 25, dpi = 200, limitsize = F)
+ggsave("plot.boyce.rndsp.test.BvP_repamp.png", plot.boyce.rndsp.test.BvP_repamp, width = 25, height = 12, dpi = 200, limitsize = F)
+ggsave("plot.boyce.rndsp.test.BvP_reptile.png", plot.boyce.rndsp.test.BvP_reptile, width = 25, height = 12, dpi = 200, limitsize = F)
+ggsave("plot.boyce.rndsp.test.BvP_amphibian.png", plot.boyce.rndsp.test.BvP_amphibian, width = 25, height = 12, dpi = 200, limitsize = F)
+
+```
+
+#AUC comparison 
+
+```{r}
+AUC_rnd.val.mammal <- vector()
+for(i in 1:35){
+AUC_rnd.val.mammal[i] <- SDMtune::auc(model = model_rndcv4k_mammal[[i]], test = TRUE)
+}
+
+AUC_sp.val.mammal <- vector()
+for(i in 1:35){
+AUC_sp.val.mammal[i] <- SDMtune::auc(model = model_spcv4k_mammal[[i]], test = TRUE)
+}
+```
+
+AUC for test 
+```{r}
+AUC_rnd.test.reptile <- vector()
+for(i in 1:length(model_rndcv4k_reptile)){
+AUC_rnd.test.reptile[i] <- SDMtune::auc(model = model_rndcv4k_reptile[[i]], test = t.t.reptile_0.2[[i]][[2]])
+}
+
+AUC_rnd.test.amphibian <- vector()
+for(i in 1:length(model_rndcv4k_amphibian)){
+AUC_rnd.test.amphibian[i] <- SDMtune::auc(model = model_rndcv4k_amphibian[[i]], test = t.t.amphibian_0.2[[i]][[2]])
+}
+
+AUC_sp.test.reptile <- vector()
+for(i in 1:length(model_spcv4k_reptile)){
+AUC_sp.test.reptile[i] <- SDMtune::auc(model = model_spcv4k_reptile[[i]], test = t.t.reptile_0.2[[i]][[2]])
+}
+```
+```{r}
+AUC_sp.test.amphibian <- vector()
+for(i in 1:length(model_spcv4k_amphibian)){
+AUC_sp.test.amphibian[i] <- SDMtune::auc(model = model_spcv4k_amphibian[[i]], test = t.t.amphibian_0.2[[i]][[2]])
+}
+
+AUC_rnd.test.pcnm.reptile <- vector()
+for(i in 1:length(model_rndcv4k.pcnm_reptile)){
+AUC_rnd.test.pcnm.reptile[i] <- SDMtune::auc(model = model_rndcv4k.pcnm_reptile[[i]], test = t.t.pcnm.reptile_0.2[[i]][[2]])
+}
+
+AUC_rnd.test.pcnm.amphibian <- vector()
+for(i in 1:length(model_rndcv4k.pcnm_amphibian)){
+AUC_rnd.test.pcnm.amphibian[i] <- SDMtune::auc(model = model_rndcv4k.pcnm_amphibian[[i]], test = t.t.pcnm.amphibian_0.2[[i]][[2]])
+}
+
+AUC_sp.test.pcnm.reptile <- vector()
+for(i in 1:length(model_spcv4k.pcnm_reptile)){
+AUC_sp.test.pcnm.reptile[i] <- SDMtune::auc(model = model_spcv4k.pcnm_reptile[[i]], test = t.t.pcnm.reptile_0.2[[i]][[2]])
+}
+
+AUC_sp.test.pcnm.amphibian <- vector()
+for(i in 1:length(model_rndcv4k.pcnm_amphibian)){
+AUC_sp.test.pcnm.amphibian[i] <- SDMtune::auc(model = model_spcv4k.pcnm_amphibian[[i]], test = t.t.pcnm.amphibian_0.2[[i]][[2]])
+}
+
+
+```
+
+
+
+plot AUCs... 1. speceis col name
+```{r}
+name.model_rndcv4k_reptile <- vector()
+for(i in 1:length(model_rndcv4k_reptile)){
+  name.model_rndcv4k_reptile[i] <- model_rndcv4k_reptile[[i]]@data@species
+}
+
+name.model_rndcv4k_amphibian <- vector()
+for(i in 1:length(model_rndcv4k_amphibian)){
+  name.model_rndcv4k_amphibian[i] <- model_rndcv4k_amphibian[[i]]@data@species
+}
+
+name.model_spcv4k_reptile <- vector()
+for(i in 1:length(model_spcv4k_reptile)){
+  name.model_spcv4k_reptile[i] <- model_spcv4k_reptile[[i]]@data@species
+}
+
+name.model_spcv4k_amphibian <- vector()
+for(i in 1:length(model_spcv4k_amphibian)){
+  name.model_spcv4k_amphibian[i] <- model_spcv4k_amphibian[[i]]@data@species
+}
+
+name.model_rndcv4k.pcnm_reptile <- vector()
+for(i in 1:length(model_rndcv4k.pcnm_reptile)){
+  name.model_rndcv4k.pcnm_reptile[i] <- model_rndcv4k.pcnm_reptile[[i]]@data@species
+}
+
+name.model_rndcv4k.pcnm_amphibian <- vector()
+for(i in 1:length(model_rndcv4k.pcnm_amphibian)){
+  name.model_rndcv4k.pcnm_amphibian[i] <- model_rndcv4k.pcnm_amphibian[[i]]@data@species
+}
+
+name.model_spcv4k.pcnm_reptile <- vector()
+for(i in 1:length(model_spcv4k.pcnm_reptile)){
+  name.model_spcv4k.pcnm_reptile[i] <- model_spcv4k.pcnm_reptile[[i]]@data@species
+}
+
+name.model_spcv4k.pcnm_amphibian <- vector()
+for(i in 1:length(model_spcv4k.pcnm_amphibian)){
+  name.model_spcv4k.pcnm_amphibian[i] <- model_spcv4k.pcnm_amphibian[[i]]@data@species
+}
+
+```
+
+
+plot AUCs
+```{r}
+
+rbind(data.frame(AUC_bio = AUC_rnd.test.reptile,
+           cv = "random",
+           taxa = "reptile",
+           species = name.model_rndcv4k_reptile,
+           variable = "bio"),
+      data.frame(AUC_bio = AUC_rnd.test.amphibian,
+           cv = "random",
+           taxa = "amphibian",
+           species = name.model_rndcv4k_amphibian,
+           variable = "bio"),
+      data.frame(AUC_bio = AUC_sp.test.reptile,
+           cv = "spatial",
+           taxa = "reptile",
+           species = name.model_spcv4k_reptile,
+           variable = "bio"),
+      data.frame(AUC_bio = AUC_sp.test.amphibian,
+           cv = "spatial",
+           taxa = "amphibian",
+           species = name.model_spcv4k_amphibian,
+           variable = "bio")) -> a #nrow 282
+
+rbind(data.frame(AUC_PCNM = AUC_rnd.test.pcnm.reptile,
+           cv = "random",
+           taxa = "reptile",
+           species = name.model_rndcv4k.pcnm_reptile,
+           variable = "PCNM"),
+      data.frame(AUC_PCNM = AUC_rnd.test.pcnm.amphibian,
+           cv = "random",
+           taxa = "amphibian",
+           species = name.model_rndcv4k.pcnm_amphibian,
+           variable = "PCNM"),
+      data.frame(AUC_PCNM = AUC_sp.test.pcnm.reptile,
+           cv = "spatial",
+           taxa = "reptile",
+           species = name.model_spcv4k.pcnm_reptile,
+           variable = "PCNM"),
+      data.frame(AUC_PCNM = AUC_sp.test.pcnm.amphibian,
+           cv = "spatial",
+           taxa = "amphibian",
+           species = name.model_spcv4k.pcnm_amphibian,
+           variable = "PCNM")) -> b #nrow 194
+
+
+d <- vector()
+for(i in 1:length(unique(b$species))){
+  d[i] <- unique(b$species)[i] #필요한 학명들
+}
+
+e <- list()
+for(i in 1:length(d)){
+  e[[i]] <- a %>% dplyr::filter(species == d[i]) #a중 b학명과 겹치는 것들 하나씩 e에 넣음 
+}
+
+e <- do.call(rbind, e) #e 것들을 전부 결합. a중 b와 이름이 같은 애들을 뭉침
+e <- e[order(e$cv),] #b와 같은 정렬
+
+
+
+df.AUC <- data.frame(AUC_bio = e$AUC_bio,
+                     AUC_PCNM = b$AUC_PCNM,
+                     cv = e$cv,
+                     taxa = e$taxa,
+                     species = e$species)
+
+  ggplot(data = df.AUC) +
+      geom_point(aes(x = AUC_bio, y = AUC_PCNM, color = cv, shape = taxa, size = 2)) +
+      geom_hline(yintercept=0.5, linetype="dashed") +
+      geom_vline(xintercept=0.5, linetype="dashed") +
+       geom_abline(intercept = 0, slope = 1, size = 0.5) +
+      labs(title = "AUC comparison",
+           subtitle = "regularization = 1",
+           y = "AUC with PCNM variables",
+           x = "AUC with bioclimate variables") +
+      theme_light() +
+      theme(strip.text.x = element_text(size = 8, colour = "black"),
+        strip.background = element_rect(colour="gray",
+                                        fill="white")) -> test
+
+
+
+```
+
+
+
+
+
+```{r without PCNM}
+
+AUC_sp.amphibian <- vector()
+for(i in 1:length(model_spcv4k_amphibian)){
+AUC_sp.amphibian[i] <- SDMtune::auc(model = model_spcv4k_amphibian[[i]], t.t.amphibian_0.2[[i]][[2]])  
+}
+
+```
+
+
+
+```{r with PCNM}
+AUC_sp.pcnm.amphibian <- vector()
+for(i in 1:length(model_spcv4k.pcnm_amphibian)){
+  AUC_sp.pcnm.amphibian[i] <- SDMtune::auc(model = model_spcv4k.pcnm_amphibian[[i]], t.t.amphibian_0.2.test[[i]][[2]])
+}
+
+```
+
+```{r cut to direct comparison} 
+AUC_sp.amphibian[-c(5,9,10,23,25,26,27,29,31,33,34,42,44,45,49)] -> AUC_sp.amphibian
+AUC_sp.amphibian[-c(11, 21, 25)] -> AUC_sp.amphibian
+AUC_sp.amphibian <- AUC_sp.amphibian[-10] 
+AUC_sp.amphibian <- AUC_sp.amphibian[-22] 
+```
+
+```{r}
+AUC_sp.amphibian
+AUC_sp.pcnm.amphibian
+```
+
+TSS?
+
+TSS for test 
+```{r}
+TSS_rnd.test.reptile <- vector()
+for(i in 1:length(model_rndcv4k_reptile)){
+TSS_rnd.test.reptile[i] <- SDMtune::tss(model = model_rndcv4k_reptile[[i]], test = t.t.reptile_0.2[[i]][[2]])
+}
+
+TSS_rnd.test.amphibian <- vector()
+for(i in 1:length(model_rndcv4k_amphibian)){
+TSS_rnd.test.amphibian[i] <- SDMtune::tss(model = model_rndcv4k_amphibian[[i]], test = t.t.amphibian_0.2[[i]][[2]])
+}
+
+TSS_sp.test.reptile <- vector()
+for(i in 1:length(model_spcv4k_reptile)){
+TSS_sp.test.reptile[i] <- SDMtune::tss(model = model_spcv4k_reptile[[i]], test = t.t.reptile_0.2[[i]][[2]])
+}
+
+TSS_sp.test.amphibian <- vector()
+for(i in 1:length(model_spcv4k_amphibian)){
+TSS_sp.test.amphibian[i] <- SDMtune::tss(model = model_spcv4k_amphibian[[i]], test = t.t.amphibian_0.2[[i]][[2]])
+}
+
+```
+
+```{r}
+
+TSS_rnd.test.pcnm.reptile <- vector()
+for(i in 1:length(model_rndcv4k.pcnm_reptile)){
+TSS_rnd.test.pcnm.reptile[i] <- SDMtune::tss(model = model_rndcv4k.pcnm_reptile[[i]], test = t.t.pcnm.reptile_0.2[[i]][[2]])
+}
+
+TSS_rnd.test.pcnm.amphibian <- vector()
+for(i in 1:length(model_rndcv4k.pcnm_amphibian)){
+TSS_rnd.test.pcnm.amphibian[i] <- SDMtune::tss(model = model_rndcv4k.pcnm_amphibian[[i]], test = t.t.pcnm.amphibian_0.2[[i]][[2]])
+}
+
+TSS_sp.test.pcnm.reptile <- vector()
+for(i in 1:length(model_spcv4k.pcnm_reptile)){
+TSS_sp.test.pcnm.reptile[i] <- SDMtune::tss(model = model_spcv4k.pcnm_reptile[[i]], test = t.t.pcnm.reptile_0.2[[i]][[2]])
+}
+
+TSS_sp.test.pcnm.amphibian <- vector()
+for(i in 1:length(model_rndcv4k.pcnm_amphibian)){
+TSS_sp.test.pcnm.amphibian[i] <- SDMtune::tss(model = model_spcv4k.pcnm_amphibian[[i]], test = t.t.pcnm.amphibian_0.2[[i]][[2]])
+}
+
+
+```
+
+
+
+plot TSSs... 1. speceis col name
+```{r}
+name.model_rndcv4k_reptile <- vector()
+for(i in 1:length(model_rndcv4k_reptile)){
+  name.model_rndcv4k_reptile[i] <- model_rndcv4k_reptile[[i]]@data@species
+}
+
+name.model_rndcv4k_amphibian <- vector()
+for(i in 1:length(model_rndcv4k_amphibian)){
+  name.model_rndcv4k_amphibian[i] <- model_rndcv4k_amphibian[[i]]@data@species
+}
+
+name.model_spcv4k_reptile <- vector()
+for(i in 1:length(model_spcv4k_reptile)){
+  name.model_spcv4k_reptile[i] <- model_spcv4k_reptile[[i]]@data@species
+}
+
+name.model_spcv4k_amphibian <- vector()
+for(i in 1:length(model_spcv4k_amphibian)){
+  name.model_spcv4k_amphibian[i] <- model_spcv4k_amphibian[[i]]@data@species
+}
+
+name.model_rndcv4k.pcnm_reptile <- vector()
+for(i in 1:length(model_rndcv4k.pcnm_reptile)){
+  name.model_rndcv4k.pcnm_reptile[i] <- model_rndcv4k.pcnm_reptile[[i]]@data@species
+}
+
+name.model_rndcv4k.pcnm_amphibian <- vector()
+for(i in 1:length(model_rndcv4k.pcnm_amphibian)){
+  name.model_rndcv4k.pcnm_amphibian[i] <- model_rndcv4k.pcnm_amphibian[[i]]@data@species
+}
+
+name.model_spcv4k.pcnm_reptile <- vector()
+for(i in 1:length(model_spcv4k.pcnm_reptile)){
+  name.model_spcv4k.pcnm_reptile[i] <- model_spcv4k.pcnm_reptile[[i]]@data@species
+}
+
+name.model_spcv4k.pcnm_amphibian <- vector()
+for(i in 1:length(model_spcv4k.pcnm_amphibian)){
+  name.model_spcv4k.pcnm_amphibian[i] <- model_spcv4k.pcnm_amphibian[[i]]@data@species
+}
+
+```
+
+
+plot TSSs
+```{r}
+
+rbind(data.frame(TSS_bio = TSS_rnd.test.reptile,
+           cv = "random",
+           taxa = "reptile",
+           species = name.model_rndcv4k_reptile,
+           variable = "bio"),
+      data.frame(TSS_bio = TSS_rnd.test.amphibian,
+           cv = "random",
+           taxa = "amphibian",
+           species = name.model_rndcv4k_amphibian,
+           variable = "bio"),
+      data.frame(TSS_bio = TSS_sp.test.reptile,
+           cv = "spatial",
+           taxa = "reptile",
+           species = name.model_spcv4k_reptile,
+           variable = "bio"),
+      data.frame(TSS_bio = TSS_sp.test.amphibian,
+           cv = "spatial",
+           taxa = "amphibian",
+           species = name.model_spcv4k_amphibian,
+           variable = "bio")) -> a #nrow 282
+
+rbind(data.frame(TSS_PCNM = TSS_rnd.test.pcnm.reptile,
+           cv = "random",
+           taxa = "reptile",
+           species = name.model_rndcv4k.pcnm_reptile,
+           variable = "PCNM"),
+      data.frame(TSS_PCNM = TSS_rnd.test.pcnm.amphibian,
+           cv = "random",
+           taxa = "amphibian",
+           species = name.model_rndcv4k.pcnm_amphibian,
+           variable = "PCNM"),
+      data.frame(TSS_PCNM = TSS_sp.test.pcnm.reptile,
+           cv = "spatial",
+           taxa = "reptile",
+           species = name.model_spcv4k.pcnm_reptile,
+           variable = "PCNM"),
+      data.frame(TSS_PCNM = TSS_sp.test.pcnm.amphibian,
+           cv = "spatial",
+           taxa = "amphibian",
+           species = name.model_spcv4k.pcnm_amphibian,
+           variable = "PCNM")) -> b #nrow 194
+
+
+d <- vector()
+for(i in 1:length(unique(b$species))){
+  d[i] <- unique(b$species)[i] #필요한 학명들
+}
+
+e <- list()
+for(i in 1:length(d)){
+  e[[i]] <- a %>% dplyr::filter(species == d[i]) #a중 b학명과 겹치는 것들 하나씩 e에 넣음 
+}
+
+e <- do.call(rbind, e) #e 것들을 전부 결합. a중 b와 이름이 같은 애들을 뭉침
+e <- e[order(e$cv),] #b와 같은 정렬
+
+
+
+df.TSS <- data.frame(TSS_bio = e$TSS_bio,
+                     TSS_PCNM = b$TSS_PCNM,
+                     cv = e$cv,
+                     taxa = e$taxa,
+                     species = e$species)
+
+  ggplot(data = df.TSS) +
+      geom_point(aes(x = TSS_bio, y = TSS_PCNM, color = cv, shape = taxa, size = 2)) +
+      geom_hline(yintercept=0.5, linetype="dashed") +
+      geom_vline(xintercept=0.5, linetype="dashed") +
+       geom_abline(intercept = 0, slope = 1, size = 0.5) +
+      labs(title = "TSS comparison",
+           subtitle = "regularization = 1",
+           y = "TSS with PCNM variables",
+           x = "TSS with bioclimate variables") +
+      theme_light() +
+      theme(strip.text.x = element_text(size = 8, colour = "black"),
+        strip.background = element_rect(colour="gray",
+                                        fill="white")) -> test
+
+
+
+```
+
+
+
+
+
+```{r without PCNM}
+
+TSS_sp.amphibian <- vector()
+for(i in 1:length(model_spcv4k_amphibian)){
+TSS_sp.amphibian[i] <- SDMtune::tss(model = model_spcv4k_amphibian[[i]], t.t.amphibian_0.2[[i]][[2]])  
+}
+
+```
+
+
+
+```{r with PCNM}
+TSS_sp.pcnm.amphibian <- vector()
+for(i in 1:length(model_spcv4k.pcnm_amphibian)){
+  TSS_sp.pcnm.amphibian[i] <- SDMtune::tss(model = model_spcv4k.pcnm_amphibian[[i]], t.t.amphibian_0.2.test[[i]][[2]])
+}
+
+```
+
+```{r cut to direct comparison} 
+TSS_sp.amphibian[-c(5,9,10,23,25,26,27,29,31,33,34,42,44,45,49)] -> TSS_sp.amphibian
+TSS_sp.amphibian[-c(11, 21, 25)] -> TSS_sp.amphibian
+TSS_sp.amphibian <- TSS_sp.amphibian[-10] 
+TSS_sp.amphibian <- TSS_sp.amphibian[-22] 
+```
+
+```{r}
+TSS_sp.amphibian
+TSS_sp.pcnm.amphibian
+```
+
+
+
+
+
+
+DRAW Boyce index
+
+```{r}
+
+
+BOYCE_rnd.test.reptile <- vector()
+for(i in 1:length(boyce.test.rnd_reptile)){
+ BOYCE_rnd.test.reptile[i] <- boyce.test.rnd_reptile[[i]]$Spearman.cor  
+}
+
+BOYCE_rnd.test.amphibian <- vector()
+for(i in 1:length(boyce.test.rnd_amphibian)){
+ BOYCE_rnd.test.amphibian[i] <- boyce.test.rnd_amphibian[[i]]$Spearman.cor  
+}
+
+BOYCE_sp.test.reptile <- vector()
+for(i in 1:length(boyce.test.sp_reptile)){
+ BOYCE_sp.test.reptile[i] <- boyce.test.sp_reptile[[i]]$Spearman.cor  
+}
+
+BOYCE_sp.test.amphibian <- vector()
+for(i in 1:length(boyce.test.sp_amphibian)){
+ BOYCE_sp.test.amphibian[i] <- boyce.test.sp_amphibian[[i]]$Spearman.cor  
+}
+
+BOYCE_rnd.test.pcnm.reptile <- vector()
+for(i in 29:length(boyce.test.rnd.pcnm_reptile)){
+ BOYCE_rnd.test.pcnm.reptile[i] <- boyce.test.rnd.pcnm_reptile[[i]]$Spearman.cor  
+}
+
+BOYCE_rnd.test.pcnm.amphibian <- vector()
+for(i in 14:length(boyce.test.rnd.pcnm_amphibian)){
+ BOYCE_rnd.test.pcnm.amphibian[i] <- boyce.test.rnd.pcnm_amphibian[[i]]$Spearman.cor  
+}
+
+BOYCE_sp.test.pcnm.reptile <- vector()
+for(i in 1:length(boyce.test.sp.pcnm_reptile)){
+ BOYCE_sp.test.pcnm.reptile[i] <- boyce.test.sp.pcnm_reptile[[i]]$Spearman.cor  
+}
+
+BOYCE_sp.test.pcnm.amphibian <- vector()
+for(i in 1:length(boyce.test.sp.pcnm_amphibian)){
+ BOYCE_sp.test.pcnm.amphibian[i] <- boyce.test.sp.pcnm_amphibian[[i]]$Spearman.cor  
+}
+
+
+```
+
+
+plot BOYCEs
+```{r}
+
+rbind(data.frame(BOYCE_bio = BOYCE_rnd.test.reptile,
+           cv = "random",
+           taxa = "reptile",
+           species = name.model_rndcv4k_reptile,
+           variable = "bio"),
+      data.frame(BOYCE_bio = BOYCE_rnd.test.amphibian,
+           cv = "random",
+           taxa = "amphibian",
+           species = name.model_rndcv4k_amphibian,
+           variable = "bio"),
+      data.frame(BOYCE_bio = BOYCE_sp.test.reptile,
+           cv = "spatial",
+           taxa = "reptile",
+           species = name.model_spcv4k_reptile,
+           variable = "bio"),
+      data.frame(BOYCE_bio = BOYCE_sp.test.amphibian[-4],
+           cv = "spatial",
+           taxa = "amphibian",
+           species = name.model_spcv4k_amphibian[-4],
+           variable = "bio")) -> a #nrow 282
+
+rbind(data.frame(BOYCE_PCNM = BOYCE_rnd.test.pcnm.reptile,
+           cv = "random",
+           taxa = "reptile",
+           species = name.model_rndcv4k.pcnm_reptile,
+           variable = "PCNM"),
+      data.frame(BOYCE_PCNM = BOYCE_rnd.test.pcnm.amphibian,
+           cv = "random",
+           taxa = "amphibian",
+           species = name.model_rndcv4k.pcnm_amphibian,
+           variable = "PCNM"),
+      data.frame(BOYCE_PCNM = BOYCE_sp.test.pcnm.reptile,
+           cv = "spatial",
+           taxa = "reptile",
+           species = name.model_spcv4k.pcnm_reptile,
+           variable = "PCNM"),
+      data.frame(BOYCE_PCNM = BOYCE_sp.test.pcnm.amphibian,
+           cv = "spatial",
+           taxa = "amphibian",
+           species = name.model_spcv4k.pcnm_amphibian,
+           variable = "PCNM")) -> b #nrow 194
+
+
+d <- vector()
+for(i in 1:length(unique(b$species))){
+  d[i] <- unique(b$species)[i] #필요한 학명들
+}
+
+e <- list()
+for(i in 1:length(d)){
+  e[[i]] <- a %>% dplyr::filter(species == d[i]) #a중 b학명과 겹치는 것들 하나씩 e에 넣음 
+}
+
+e <- do.call(rbind, e) #e 것들을 전부 결합. a중 b와 이름이 같은 애들을 뭉침
+e <- e[order(e$cv),] #b와 같은 정렬
+
+eb <- rbind(e,b)
+
+df.BOYCE <- data.frame(BOYCE = eb$BOYCE, #for point plot
+                     cv = eb$cv,
+                     taxa = eb$taxa,
+                     variable = eb$variable,
+                     species = eb$species)
+
+df.BOYCE <- data.frame(BOYCE_bio = e$BOYCE_bio,
+                     BOYCE_PCNM = b$BOYCE_PCNM,
+                     cv = e$cv,
+                     taxa = e$taxa,
+                     species = e$species)
+
+ ggplot(data = filter(df.BOYCE, taxa == "reptile")) +
+      geom_point(aes(x = cv, y = BOYCE, color = variable), size = 1) +
+      geom_path(aes(x = cv, y = BOYCE, colour = variable, group = variable)) +
+      facet_wrap( ~ species, scale = "free") +
+      labs(title = "Model transferability of reptile species",
+           subtitle = "More parallel slope, More transferable",
+           y = "Boyce index",
+           x = "Cross-validation",
+           size = 15) +
+      theme_light() +
+      theme(strip.text.x = element_text(size = 9, colour = "black"),
+        strip.background = element_rect(colour="gray",
+                                        fill="white")) -> transfer.BOYCE #for point plot
+
+  ggplot(data = filter(df.BOYCE, taxa == "amphibian")) +
+      geom_point(aes(x = cv, y = BOYCE, color = variable), size = 1) +
+      geom_path(aes(x = cv, y = BOYCE, colour = variable, group = variable)) +
+      facet_wrap( ~ species, scale = "free") +
+      labs(title = "Model transferability of amphibian species",
+           subtitle = "More parallel slope, More transferable",
+           y = "Boyce index",
+           x = "Cross-validation",
+           size = 15) +
+      theme_light() +
+      theme(strip.text.x = element_text(size = 9, colour = "black"),
+        strip.background = element_rect(colour="gray",
+                                        fill="white")) -> transfer.BOYCE #for point plot
+
+
+df.BOYCE.bio.sp <- filter(df.BOYCE, variable == "bio", cv == "spatial")
+df.BOYCE.bio.rnd <- filter(df.BOYCE, variable == "bio", cv == "random")
+df.BOYCE.pcnm.sp <- filter(df.BOYCE, variable == "PCNM", cv == "spatial")
+df.BOYCE.pcnm.rnd <- filter(df.BOYCE, variable == "PCNM", cv == "random")
+
+length(which((df.BOYCE.bio.rnd$BOYCE - df.BOYCE.bio.sp$BOYCE) > (df.BOYCE.pcnm.rnd$BOYCE - df.BOYCE.pcnm.sp$BOYCE))) #46
+length(which((df.BOYCE.bio.rnd$BOYCE - df.BOYCE.bio.sp$BOYCE) < (df.BOYCE.pcnm.rnd$BOYCE - df.BOYCE.pcnm.sp$BOYCE))) #49
+
+  ggplot(data = df.BOYCE) +
+      geom_point(aes(x = BOYCE_bio, y = BOYCE_PCNM, color = cv, shape = taxa, size = 2)) +
+      geom_hline(yintercept=0.5, linetype="dashed") +
+      geom_vline(xintercept=0.5, linetype="dashed") +
+       geom_abline(intercept = 0, slope = 1, size = 0.5) +
+      labs(title = "BOYCE comparison",
+           y = "BOYCE with PCNM variables",
+           x = "BOYCE with bioclimate variables") +
+      theme_light() +
+      theme(strip.text.x = element_text(size = 8, colour = "black"),
+        strip.background = element_rect(colour="gray",
+                                        fill="white")) -> test
+
+
+
+```
+
+
+
+
+
+```{r}
+BOYCE_sp.amphibian <- vector()
+for(i in 1:length(boyce_test.sp_amphibian)){
+  BOYCE_sp.amphibian[i] <- boyce_test.sp_amphibian[[i]]$Spearman.cor
+}
+
+  
+  
+  BOYCE_sp.pcnm.amphibian <- vector()
+for(i in 1:length(boyce_test.sp.pcnm_amphibian)){
+  BOYCE_sp.pcnm.amphibian[i] <- boyce_test.sp.pcnm_amphibian[[i]]$Spearman.cor}
+```
+
+```{r cut for direct comparison}
+BOYCE_sp.amphibian[-c(5,9,10,23,25,26,27,29,31,33,34,42,44,45,49)] -> BOYCE_sp.amphibian
+BOYCE_sp.amphibian[-c(11, 21, 25)] -> BOYCE_sp.amphibian
+BOYCE_sp.amphibian <- BOYCE_sp.amphibian[-10] 
+BOYCE_sp.amphibian <- BOYCE_sp.amphibian[-22] 
+```
+
+```{r}
+BOYCE_sp.amphibian
+BOYCE_sp.pcnm.amphibian
+```
+
+
+
+
+
+
+
+```{r}
+source("pocplots.R")
+pocplot <- function(pred, back, linearize=TRUE, ...) {
+  ispresence <- c(rep(1,length(pred)), rep(0, length(back)))
+  predd <- smoothdist(c(pred,back), ispresence)
+  c <- mean(back)*length(back)/length(pred)
+  if (linearize) {
+    fun <- function(x,y) c*y / (1-y)
+    predd$y <- mapply(fun, predd$x, predd$y)
+    predd$se <- mapply(fun, predd$x, predd$se)
+    ideal <- function(x) x
+    ylab <- "Relative probability of presence" 
+  } 
+  else {
+    ideal <- function(x) x / (x + c)
+    ylab <- "Probability of presence"
+  }
+  calibplot(predd, negrug=back, posrug=pred, ideal=ideal, ylab=ylab,
+    capuci = FALSE, ...)
+  predd
+}
+
+```
+
+DRAW POC plot
+```{r}
+
+poc.test.rnd_reptile <- list()
+for(i in 1:length(test_rndcv4k_reptile)){
+poc.test.rnd_reptile[[i]] <- pocplot(test_rndcv4k_reptile[[i]][[2]], test_rndcv4k_reptile[[i]][[3]])}
+
+poc.test.rnd.pcnm_reptile <- list()
+for(i in 1:length(test_rndcv4k.pcnm_reptile)){
+poc.test.rnd.pcnm_reptile[[i]] <- pocplot(test_rndcv4k.pcnm_reptile[[i]][[2]], test_rndcv4k.pcnm_reptile[[i]][[3]])}
+```
+
+
+```{r}
+SDMtune::plotResponse(model_rndcv4k_reptile[[1]], var = "wc2.1_30s_bio_01", type = "logistic")
+
+# Acquire environmental variables
+files <- list.files(path = file.path(system.file(package = "dismo"), "ex"),
+                    pattern = "grd", full.names = TRUE)
+predictors <- raster::stack(files)
+
+# Prepare presence and background locations
+p_coords <- virtualSp$presence
+bg_coords <- virtualSp$background
+
+# Create SWD object
+data <- prepareSWD(species = "Virtual species", p = p_coords, a = bg_coords,
+                   env = predictors, categorical = "biome")
+
+# Train a model
+model <- train(method = "Maxnet", data = data, fc = "lq")
+
+# Plot cloglog response curve for a continuous environmental variable (bio1)
+plotResponse(model, var = "bio2", type = "cloglog")
+
+# Plot marginal cloglog response curve for a continuous environmental
+# variable (bio1)
+plotResponse(model, var = "bio1", type = "cloglog", marginal = TRUE)
+
+# Plot logistic response curve for a continuous environmental variable
+# (bio12) adding the rugs and giving a custom color
+plotResponse(model, var = "bio12", type = "logistic", rug = TRUE,
+             color = "blue")
+
+# Plot response curve for a categorical environmental variable (biome) giving
+# a custom color
+plotResponse(model, var = "biome", type = "logistic", color = "green")
+
+# Train a model with cross validation
+folds <- randomFolds(data, k = 4, only_presence = TRUE)
+model <- train(method = "Maxnet", data = data, fc = "lq", folds = folds)
+
+# Plot cloglog response curve for a continuous environmental variable (bio17)
+plotResponse(model, var = "bio1", type = "cloglog")
+
+# Plot logistic response curve for a categorical environmental variable
+# (biome) giving a custom color
+plotResponse(model, var = "biome", type = "logistic", color = "green")
+
+
+```
+
+
+
+transferability
+Draw AUCs
+
+
+```{r}
+rbind(data.frame(AUC = AUC_rnd.test.reptile,
+           cv = "random",
+           taxa = "reptile",
+           species = name.model_rndcv4k_reptile,
+           variable = "bio"),
+      data.frame(AUC = AUC_rnd.test.amphibian,
+           cv = "random",
+           taxa = "amphibian",
+           species = name.model_rndcv4k_amphibian,
+           variable = "bio"),
+      data.frame(AUC = AUC_sp.test.reptile,
+           cv = "spatial",
+           taxa = "reptile",
+           species = name.model_spcv4k_reptile,
+           variable = "bio"),
+      data.frame(AUC = AUC_sp.test.amphibian,
+           cv = "spatial",
+           taxa = "amphibian",
+           species = name.model_spcv4k_amphibian,
+           variable = "bio")) -> a #nrow 282
+
+rbind(data.frame(AUC = AUC_rnd.test.pcnm.reptile,
+           cv = "random",
+           taxa = "reptile",
+           species = name.model_rndcv4k.pcnm_reptile,
+           variable = "PCNM"),
+      data.frame(AUC = AUC_rnd.test.pcnm.amphibian,
+           cv = "random",
+           taxa = "amphibian",
+           species = name.model_rndcv4k.pcnm_amphibian,
+           variable = "PCNM"),
+      data.frame(AUC = AUC_sp.test.pcnm.reptile,
+           cv = "spatial",
+           taxa = "reptile",
+           species = name.model_spcv4k.pcnm_reptile,
+           variable = "PCNM"),
+      data.frame(AUC = AUC_sp.test.pcnm.amphibian,
+           cv = "spatial",
+           taxa = "amphibian",
+           species = name.model_spcv4k.pcnm_amphibian,
+           variable = "PCNM")) -> b #nrow 194
+
+rbind(data.frame(AUC = AUC_rnd.train.reptile,
+           cv = "random",
+           taxa = "reptile",
+           species = name.model_rndcv4k_reptile,
+           variable = "bio"),
+      data.frame(AUC = AUC_rnd.train.amphibian,
+           cv = "random",
+           taxa = "amphibian",
+           species = name.model_rndcv4k_amphibian,
+           variable = "bio"),
+      data.frame(AUC = AUC_sp.train.reptile,
+           cv = "spatial",
+           taxa = "reptile",
+           species = name.model_spcv4k_reptile,
+           variable = "bio"),
+      data.frame(AUC = AUC_sp.train.amphibian,
+           cv = "spatial",
+           taxa = "amphibian",
+           species = name.model_spcv4k_amphibian,
+           variable = "bio")) -> x #nrow 282
+
+rbind(data.frame(AUC = AUC_rnd.train.pcnm.reptile,
+           cv = "random",
+           taxa = "reptile",
+           species = name.model_rndcv4k.pcnm_reptile,
+           variable = "PCNM"),
+      data.frame(AUC = AUC_rnd.train.pcnm.amphibian,
+           cv = "random",
+           taxa = "amphibian",
+           species = name.model_rndcv4k.pcnm_amphibian,
+           variable = "PCNM"),
+      data.frame(AUC = AUC_sp.train.pcnm.reptile,
+           cv = "spatial",
+           taxa = "reptile",
+           species = name.model_spcv4k.pcnm_reptile,
+           variable = "PCNM"),
+      data.frame(AUC = AUC_sp.train.pcnm.amphibian,
+           cv = "spatial",
+           taxa = "amphibian",
+           species = name.model_spcv4k.pcnm_amphibian,
+           variable = "PCNM")) -> y #nrow 194
+
+#a282 b194 x282 y194
+
+d <- vector()
+for(i in 1:length(unique(b$species))){
+  d[i] <- unique(b$species)[i] #필요한 학명들
+}
+
+e <- list()
+for(i in 1:length(d)){
+  e[[i]] <- a %>% dplyr::filter(species == d[i]) #a중 b학명과 겹치는 것들 하나씩 e에 넣음 
+}
+
+e <- do.call(rbind, e) #e 것들을 전부 결합. a중 b와 이름이 같은 애들을 뭉침
+e <- e[order(e$cv),] #b와 같은 정렬
+
+
+
+eb <- rbind(e,b) 
+
+
+
+df.AUC <- data.frame(AUC = eb$AUC,
+                     cv = eb$cv,
+                     taxa = eb$taxa,
+                     variable = eb$variable,
+                     species = eb$species)
+
+ ggplot(data = filter(df.AUC, taxa == "reptile")) +
+      geom_point(aes(x = cv, y = AUC, color = variable), size = 1) +
+      geom_path(aes(x = cv, y = AUC, colour = variable, group = variable)) +
+      facet_wrap( ~ species, scale = "free") +
+      labs(title = "Model transferability of reptile species",
+           subtitle = "More parallel slope, More transferable",
+           y = "AUC",
+           x = "Cross-validation",
+           size = 15) +
+      theme_light() +
+      theme(strip.text.x = element_text(size = 9, colour = "black"),
+        strip.background = element_rect(colour="gray",
+                                        fill="white")) -> transfer.AUC
+ 
+  ggplot(data = filter(df.AUC, taxa == "amphibian")) +
+      geom_point(aes(x = cv, y = AUC, color = variable), size = 1) +
+      geom_path(aes(x = cv, y = AUC, colour = variable, group = variable)) +
+      facet_wrap( ~ species, scale = "free") +
+      labs(title = "Model transferability of amphibian species",
+           subtitle = "More parallel slope, More transferable",
+           y = "AUC",
+           x = "Cross-validation",
+           size = 15) +
+      theme_light() +
+      theme(strip.text.x = element_text(size = 9, colour = "black"),
+        strip.background = element_rect(colour="gray",
+                                        fill="white")) -> transfer.AUC
+ 
+ 
+df.AUC.bio.sp <- filter(df.AUC, variable == "bio", cv == "spatial")
+df.AUC.bio.rnd <- filter(df.AUC, variable == "bio", cv == "random")
+df.AUC.pcnm.sp <- filter(df.AUC, variable == "PCNM", cv == "spatial")
+df.AUC.pcnm.rnd <- filter(df.AUC, variable == "PCNM", cv == "random")
+
+length(which((df.AUC.bio.rnd$AUC - df.AUC.bio.sp$AUC) > (df.AUC.pcnm.rnd$AUC - df.AUC.pcnm.sp$AUC))) #44
+length(which((df.AUC.bio.rnd$AUC - df.AUC.bio.sp$AUC) < (df.AUC.pcnm.rnd$AUC - df.AUC.pcnm.sp$AUC))) #53
+```
+
+
+
+
+
+
+
+
+
+
+```{r}
+# where to use???????
+rbind(
+data.frame(AUC = AUC_rnd.test.reptile,
+           cv = "random",
+           tt = "test",
+           taxa = "reptile",
+           variable = "bioclimate",
+           id = "AUC_rnd.test.bioclimate.reptile"),
+data.frame(AUC = AUC_rnd.test.amphibian,
+           cv = "random",
+           tt = "test",
+           taxa = "amphibian",
+           variable = "bioclimate",
+           id = "AUC_rnd.test.bioclimate.amphibian"),
+data.frame(AUC = AUC_rnd.test.pcnm.reptile,
+           cv = "random",
+           tt = "test",
+           taxa = "reptile",
+           variable = "pcnm",
+           id = "AUC_rnd.test.pcnm.reptile"),
+data.frame(AUC = AUC_rnd.test.pcnm.amphibian,
+           cv = "random",
+           tt = "test",
+           taxa = "amphibian",
+           variable = "pcnm",
+           id = "AUC_rnd.test.pcnm.amphibian"),
+data.frame(AUC = AUC_sp.test.reptile,
+           cv = "spatial",
+           tt = "test",
+           taxa = "reptile",
+           variable = "bioclimate",
+           id = "AUC_sp.test.bioclimate.reptile"),
+data.frame(AUC = AUC_sp.test.amphibian,
+           cv = "spatial",
+           tt = "test",
+           taxa = "amphibian",
+           variable = "bioclimate",
+           id = "AUC_sp.test.bioclimate.amphibian"),
+data.frame(AUC = AUC_sp.test.pcnm.reptile,
+           cv = "spatial",
+           tt = "test",
+           taxa = "reptile",
+           variable = "pcnm",
+           id = "AUC_sp.test.pcnm.reptile"),
+data.frame(AUC = AUC_sp.test.pcnm.amphibian,
+           cv = "spatial",
+           tt = "test",
+           taxa = "amphibian",
+           variable = "pcnm", 
+           id = "AUC_sp.test.pcnm.amphibian"),
+data.frame(AUC = AUC_rnd.train.reptile,
+           cv = "random",
+           tt = "train",
+           taxa = "reptile",
+           variable = "bioclimate",
+           id = "AUC_rnd.train.bioclimate.reptile"),
+data.frame(AUC = AUC_rnd.train.amphibian,
+           cv = "random",
+           tt = "train",
+           taxa = "amphibian",
+           variable = "bioclimate",
+           id = "AUC_rnd.train.bioclimate.amphibian"),
+data.frame(AUC = AUC_rnd.train.pcnm.reptile,
+           cv = "random",
+           tt = "train",
+           taxa = "reptile",
+           variable = "pcnm",
+           id = "AUC_rnd.train.pcnm.reptile"),
+data.frame(AUC = AUC_rnd.train.pcnm.amphibian,
+           cv = "random",
+           tt = "train",
+           taxa = "amphibian",
+           variable = "pcnm",
+           id = "AUC_rnd.train.pcnm.amphibian"),
+data.frame(AUC = AUC_sp.train.pcnm.reptile,
+           cv = "spatial",
+           tt = "train",
+           taxa = "reptile",
+           variable = "pcnm",
+           id = "AUC_sp.train.pcnm.reptile"),
+data.frame(AUC = AUC_sp.train.pcnm.amphibian,
+           cv = "spatial",
+           tt = "train",
+           taxa = "amphibian",
+           variable = "pcnm",
+           id = "AUC_sp.train.pcnm.amphibian"),
+data.frame(AUC = AUC_sp.train.reptile,
+           cv = "spatial",
+           tt = "train",
+           taxa = "reptile",
+           variable = "bioclimate",
+           id = "AUC_sp.train.bioclimate.reptile"),
+data.frame(AUC = AUC_sp.train.amphibian,
+           cv = "spatial",
+           tt = "train",
+           taxa = "amphibian",
+           variable = "bioclimate",
+           id = "AUC_sp.train.bioclimate.amphibian")) -> df.AUC 
+
+
+ ggplot(data = df.AUC) +
+      geom_point(data = filter(df.AUC, tt == "train"),  aes(x = tt, y = AUC, color = variable), size = 1) +
+      geom_point(data = filter(df.AUC, tt == "test", cv =="random"), aes(x = cv, y = AUC, color = variable), size = 1) +
+      facet_wrap( ~ species, scale = "free") +
+      labs(title = "Boyce P/E plot(Random cv REPTILE and Amphibian)",
+           y = "출현/기대 비율",
+           x = "서식처 적합도",
+           size = 15) +
+      theme_light() +
+      theme(strip.text.x = element_text(size = 9, colour = "black"),
+        strip.background = element_rect(colour="gray",
+                                        fill="white"))
+
+
+
+```
+
+
+
+
+Boyce box plot
+
+```{r}
+ggplot(df.BOYCE) + 
+  geom_boxplot(aes(x = cv, y = BOYCE_bio)) + 
+  theme(axis.text.x = element_text(angle=65, vjust=0.6)) + 
+  labs(title="Box plot", 
+       subtitle="City Mileage grouped by Class of vehicle",
+       x="A",
+       y="B")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+AUC for train
+
+```{r}
+AUC_rnd.train.reptile <- vector()
+for(i in 1:length(model_rndcv4k_reptile)){
+AUC_rnd.train.reptile[i] <- SDMtune::auc(model = model_rndcv4k_reptile[[i]])
+}
+
+AUC_rnd.train.amphibian <- vector()
+for(i in 1:length(model_rndcv4k_amphibian)){
+AUC_rnd.train.amphibian[i] <- SDMtune::auc(model = model_rndcv4k_amphibian[[i]])
+}
+
+AUC_sp.train.reptile <- vector()
+for(i in 1:length(model_spcv4k_reptile)){
+AUC_sp.train.reptile[i] <- SDMtune::auc(model = model_spcv4k_reptile[[i]])
+}
+
+AUC_sp.train.amphibian <- vector()
+for(i in 1:length(model_spcv4k_amphibian)){
+AUC_sp.train.amphibian[i] <- SDMtune::auc(model = model_spcv4k_amphibian[[i]])
+}
+
+AUC_rnd.train.pcnm.reptile <- vector()
+for(i in 1:length(model_rndcv4k.pcnm_reptile)){
+AUC_rnd.train.pcnm.reptile[i] <- SDMtune::auc(model = model_rndcv4k.pcnm_reptile[[i]])
+}
+
+AUC_rnd.train.pcnm.amphibian <- vector()
+for(i in 1:length(model_rndcv4k.pcnm_amphibian)){
+AUC_rnd.train.pcnm.amphibian[i] <- SDMtune::auc(model = model_rndcv4k.pcnm_amphibian[[i]])
+}
+
+AUC_sp.train.pcnm.reptile <- vector()
+for(i in 1:length(model_spcv4k.pcnm_reptile)){
+AUC_sp.train.pcnm.reptile[i] <- SDMtune::auc(model = model_spcv4k.pcnm_reptile[[i]])
+}
+
+AUC_sp.train.pcnm.amphibian <- vector()
+for(i in 1:length(model_rndcv4k.pcnm_amphibian)){
+AUC_sp.train.pcnm.amphibian[i] <- SDMtune::auc(model = model_spcv4k.pcnm_amphibian[[i]])
+}
+
+
+```
+
+
+
+raw output
+
+```{r test_rndcv mean}
+raw_rndcv4k.pcnm_reptile <- list()
+for(i in 29:length(model_rndcv4k.pcnm_reptile)){
+raw_rndcv4k.pcnm_reptile[[i]] <- list(SDMtune::predict(model_rndcv4k.pcnm_reptile[[i]], 
+                                                  model_rndcv4k.pcnm_reptile[[i]]@data@data[model_rndcv4k.pcnm_reptile[[i]]@data@pa==0,],
+                                                  fun = "mean",
+                                                  type = "raw"),
+                                 SDMtune::predict(model_rndcv4k.pcnm_reptile[[i]],
+                                 model_rndcv4k.pcnm_reptile[[i]]@data@data[model_rndcv4k.pcnm_reptile[[i]]@data@pa==1,],
+                                                   fun = "mean",
+                                                   type = "raw")
+                                )} #배경은 [[1]]에, 출현은 [[2]]에
+
+model_rndcv4k.pcnm_reptile[[1]]@data@data[model_rndcv4k.pcnm_reptile[[1]]@data@pa==0,]
+
+```
+
+
+```{r}
+names.variables.rndcv4k.pcnm_reptile <- list()
+for(i in 1:length(model_rndcv4k.pcnm_reptile)){
+names.variables.rndcv4k.pcnm_reptile[[i]] <- names(model_rndcv4k.pcnm_reptile[[i]]@data@data)  
+}
+
+for(i in 1:length(names.variables.rndcv4k.pcnm_reptile)){
+  names.variables.rndcv4k.pcnm_reptile[[i]][names.variables.rndcv4k.pcnm_reptile[[i]] %in% c("PCNM1", "PCNM2", "PCNM3", "PCNM4", "PCNM5", "PCNM6", "PCNM7", "PCNM8", "PCNM9")] <- c("PCNM01", "PCNM02", "PCNM03", "PCNM04", "PCNM05", "PCNM06", "PCNM07", "PCNM08", "PCNM09")
+}
+
+```
+
+
+
+```{r}
+RESPONSE.rndcv4k.pcnm_reptile <- list()
+for(i in 1:length(model_rndcv4k.pcnm_reptile)){
+  RESPONSE.rndcv4k.pcnm_reptile[[i]] <- 
+                        list(SDMtune::plotResponse(model_rndcv4k.pcnm_reptile[[i]], var = names(model_rndcv4k.pcnm_reptile[[i]]@data@data)[1], type = "raw"),
+                             SDMtune::plotResponse(model_rndcv4k.pcnm_reptile[[i]], var = names(model_rndcv4k.pcnm_reptile[[i]]@data@data)[2], type = "raw"),
+                             SDMtune::plotResponse(model_rndcv4k.pcnm_reptile[[i]], var = names(model_rndcv4k.pcnm_reptile[[i]]@data@data)[3], type = "raw"),
+                             SDMtune::plotResponse(model_rndcv4k.pcnm_reptile[[i]], var = names(model_rndcv4k.pcnm_reptile[[i]]@data@data)[4], type = "raw"),
+                             SDMtune::plotResponse(model_rndcv4k.pcnm_reptile[[i]], var = names(model_rndcv4k.pcnm_reptile[[i]]@data@data)[5], type = "raw"),
+                             SDMtune::plotResponse(model_rndcv4k.pcnm_reptile[[i]], var = names(model_rndcv4k.pcnm_reptile[[i]]@data@data)[6], type = "raw"),
+                             SDMtune::plotResponse(model_rndcv4k.pcnm_reptile[[i]], var = names(model_rndcv4k.pcnm_reptile[[i]]@data@data)[7], type = "raw"),
+                             SDMtune::plotResponse(model_rndcv4k.pcnm_reptile[[i]], var = names(model_rndcv4k.pcnm_reptile[[i]]@data@data)[8], type = "raw"),
+                             SDMtune::plotResponse(model_rndcv4k.pcnm_reptile[[i]], var = names(model_rndcv4k.pcnm_reptile[[i]]@data@data)[9], type = "raw"),
+                             SDMtune::plotResponse(model_rndcv4k.pcnm_reptile[[i]], var = names(model_rndcv4k.pcnm_reptile[[i]]@data@data)[10], type = "raw"),
+                             SDMtune::plotResponse(model_rndcv4k.pcnm_reptile[[i]], var = names(model_rndcv4k.pcnm_reptile[[i]]@data@data)[11], type = "raw"),
+                             SDMtune::plotResponse(model_rndcv4k.pcnm_reptile[[i]], var = names(model_rndcv4k.pcnm_reptile[[i]]@data@data)[12], type = "raw"),
+                             SDMtune::plotResponse(model_rndcv4k.pcnm_reptile[[i]], var = names(model_rndcv4k.pcnm_reptile[[i]]@data@data)[13], type = "raw"),
+                             SDMtune::plotResponse(model_rndcv4k.pcnm_reptile[[i]], var = names(model_rndcv4k.pcnm_reptile[[i]]@data@data)[14], type = "raw"),
+                             SDMtune::plotResponse(model_rndcv4k.pcnm_reptile[[i]], var = names(model_rndcv4k.pcnm_reptile[[i]]@data@data)[15], type = "raw"),
+                             SDMtune::plotResponse(model_rndcv4k.pcnm_reptile[[i]], var = names(model_rndcv4k.pcnm_reptile[[i]]@data@data)[16], type = "raw"),
+                             SDMtune::plotResponse(model_rndcv4k.pcnm_reptile[[i]], var = names(model_rndcv4k.pcnm_reptile[[i]]@data@data)[17], type = "raw"),
+                             SDMtune::plotResponse(model_rndcv4k.pcnm_reptile[[i]], var = names(model_rndcv4k.pcnm_reptile[[i]]@data@data)[18], type = "raw"),
+                             SDMtune::plotResponse(model_rndcv4k.pcnm_reptile[[i]], var = names(model_rndcv4k.pcnm_reptile[[i]]@data@data)[19], type = "raw"))}
+                             
+```
+
+
+
+왜 특정 종에서는 PCNM 변수가 AUC, TSS, Boyce 증가를 불러오는가?
+특정 종에서는 Boyce 그래프가 오히려 더 예쁘게 나오는 경우가 존재한다!
+왜 그렇지?
+그리고 왜 대부분은 그렇지 못했는가?
+이 결과의 매커니즘은 무엇인가?
+
+
+범인 찾기.
+1. AUC와 TSS, Boyce의 공식
+1-1. Response curve 분포
+2. 지도 상 분포와 밀집도 
+3. 
+
+
+
+
+How response curve built?
+        
+
+
+
+
+
+```{r}
+
+df.merow <- list()
+for(j in 29:length(model_rndcv4k.pcnm_reptile)){
+
+df.var <- list()
+for(i in 1:19){
+  rbind(data.frame(type = "0",
+                y = raw_rndcv4k.pcnm_reptile[[j]][[1]],
+                x = model_rndcv4k.pcnm_reptile[[j]]@data@data[model_rndcv4k.pcnm_reptile[[j]]@data@pa==0,i],
+                var = names.variables.rndcv4k.pcnm_reptile[[j]][i]),
+     data.frame(type = "1",
+                y = raw_rndcv4k.pcnm_reptile[[j]][[2]],
+                x = model_rndcv4k.pcnm_reptile[[j]]@data@data[model_rndcv4k.pcnm_reptile[[j]]@data@pa==1,i],
+                var = names.variables.rndcv4k.pcnm_reptile[[j]][i]),
+     data.frame(type = "RC",
+                y = RESPONSE.rndcv4k.pcnm_reptile[[j]][[i]]$data$y, #1st speceis 1st variables
+                x = RESPONSE.rndcv4k.pcnm_reptile[[j]][[i]]$data$x,
+                var = names.variables.rndcv4k.pcnm_reptile[[j]][i])) -> df.var[[i]]} 
+
+df.merow[[j]] <- do.call(rbind, df.var)}
+
+plot.merow.title <- list()
+for(i in 1:length(plot.merow)){
+  plot.merow.title[[i]] <- paste0("Model output from training presence/background points and response curve of *", model_rndcv4k.pcnm_reptile[[i]]@data@species,"*")
+}
+
+plot.merow <- list()
+for(i in 1:length(model_rndcv4k.pcnm_reptile)){plot.merow[[i]] <- df.merow[[i]] %>%
+ggplot2::ggplot(aes(x = x, y = y)
+                ) +
+  facet_wrap( ~ var, scale = "free") +
+  geom_smooth(alpha = 0.2, method = "loess", aes(color = type)) +
+  labs(x = "variable value", 
+       y = "raw model output",
+       title = plot.merow.title[[i]]) +
+  theme_light() +
+  theme(legend.title = element_text(size = 15),
+        legend.text = element_text(size = 13, colour = "black"),
+        legend.key = element_rect(fill = "white", color = "white"),
+        legend.position = c(0.9, 0.15),
+        strip.text.x = element_text(size = 10, colour = "black"),
+        strip.background = element_rect(colour="gray",
+                                        fill="white"),
+        plot.title = element_markdown(size = 18, vjust = 2, margin = margin(t = 4, r = 4, b = 4,l = 4)) 
+  ) + 
+  scale_color_discrete(name = "data type", labels = c("background", "presence", "response curve"))
+}
+
+df <- expand.grid(X1 = 1:10, X2 = 1:10)
+df$value <- df$X1 * df$X2
+
+p1 <- ggplot(df, aes(X1, X2)) + geom_tile(aes(fill = value))
+p2 <- p1 + labs(x = "variable value", 
+       y = "raw model output",
+       title = plot.merow.title[[i]]) + 
+  geom_point(aes(size = value)) + 
+  theme_light() +
+  theme(legend.title = element_text(size = 12),
+        legend.text = element_text(size = 10, colour = "black"),
+        legend.key = element_rect(fill = "#ffffFF", colour = "gray"),
+        strip.text.x = element_text(size = 10, colour = "black"),
+        strip.background = element_rect(colour="gray",
+                                        fill="white"),
+        plot.title = element_markdown(size = 14, vjust = 5, margin = margin(t = 20, r = 20, b = 20, l = 20)) 
+  )
+
+for(i in 1:length(plot.merow)){
+ggsave(plot.merow[[i]], filename = paste0("plot/response/",model_rndcv4k.pcnm_reptile[[i]]@data@species,"_RESPONSE.png"), scale = 2, width = 24, height = 16, units = "cm", dpi = 200, limitsize = F)}
+
+
+ggsave(plot.merow[[1]], filename = paste0("plot/response/",model_rndcv4k.pcnm_reptile[[i]]@data@species,"_RESPONSE.png"),  scale = 2, width = 24, height = 16, units = "cm", dpi = 200, limitsize = F)
+```
+
+
+
+
+
+```{r}
+my.plotResponse <- function (model, var, type = NULL, only_presence = FALSE, marginal = FALSE, 
+  fun = mean, rug = FALSE, color = "red") 
+{
+  if (!var %in% names(model@data@data)) 
+    stop(paste(var, "is not used to train the model!"))
+  p <- .get_presence(model@data)
+  a <- .get_absence(model@data)
+  if (only_presence) {
+    df <- p
+  }
+  else {
+    df <- model@data@data
+  }
+  cont_vars <- names(Filter(is.numeric, p))
+  cat_vars <- names(Filter(is.factor, p))
+  if (var %in% cat_vars) {
+    categ <- unique(as.numeric(levels(df[, var]))[df[, var]])
+    n_rows <- length(categ)
+  }
+  else {
+    n_rows <- 509
+  }
+  p_rug <- data.frame(x = p[, var])
+  a_rug <- data.frame(x = a[, var])
+  if (class(model) == "SDMmodel") {
+    plot_data <- .get_plot_data(model, var, df, cont_vars, 
+      cat_vars, n_rows, fun, marginal, type, categ)
+    if (var %in% cont_vars) {
+      my_plot <- ggplot(plot_data, aes(x = .data$x, y = .data$y)) + 
+        ggplot2::geom_line(colour = color)
+    }
+    else {
+      my_plot <- ggplot(plot_data, aes(x = .data$x, y = .data$y)) + 
+        ggplot2::geom_bar(stat = "identity", fill = color) + 
+        ggplot2::scale_x_continuous(breaks = seq(min(plot_data$x), 
+          max(plot_data$x), 1))
+    }
+  }
+  else {
+    nf <- length(model@models)
+    plot_data <- .get_plot_data(model@models[[1]], var, 
+      df, cont_vars, cat_vars, n_rows, fun, marginal, 
+      type, categ)
+    colnames(plot_data) <- c("x", "y_1")
+    for (i in 2:nf) plot_data[paste0("y_", i)] <- .get_plot_data(model@models[[i]], 
+      var, df, cont_vars, cat_vars, n_rows, fun, marginal, 
+      type, categ)$y
+    plot_data$y <- rowMeans(plot_data[, -1])
+    plot_data$sd <- apply(plot_data[, 2:(nf + 1)], 1, sd, 
+      na.rm = TRUE)
+    plot_data$y_min <- plot_data$y - plot_data$sd
+    plot_data$y_max <- plot_data$y + plot_data$sd
+    if (var %in% cont_vars) {
+      my_plot <- ggplot(plot_data, aes(x = .data$x, y = .data$y, 
+        ymin = .data$y_min, ymax = .data$y_max)) + ggplot2::geom_line(colour = color) + 
+        ggplot2::geom_ribbon(fill = color, alpha = 0.2)
+    }
+    else {
+      my_plot <- ggplot(plot_data, aes(x = .data$x, y = .data$y)) + 
+        ggplot2::geom_bar(stat = "identity", fill = color) + 
+        ggplot2::geom_errorbar(aes(ymin = .data$y_min, 
+          ymax = .data$y_max), width = 0.2, size = 0.3) + 
+        ggplot2::scale_x_continuous(breaks = seq(min(plot_data$x), 
+          max(plot_data$x), 1))
+    }
+  }
+  my_plot <- my_plot + ggplot2::labs(x = var, y = ifelse(!is.null(type), 
+    paste(type, "output"), "Probability of presence")) + 
+    ggplot2::theme_minimal() + ggplot2::theme(text = ggplot2::element_text(colour = "#666666"))
+  if (rug == TRUE & var %in% cont_vars) {
+    my_plot <- my_plot + ggplot2::geom_rug(data = p_rug, 
+      inherit.aes = FALSE, aes(.data$x), sides = "t", 
+      color = "#4C4C4C") + ggplot2::geom_rug(data = a_rug, 
+      inherit.aes = FALSE, aes(.data$x), sides = "b", 
+      color = "#4C4C4C")
+  }
+  return(my_plot)
+}
+
+.get_presence <- function (swd)
+{
+  return(swd@data[swd@pa == 1, , drop = FALSE])
+}
+
+.get_absence <- function (swd) 
+{
+  return(swd@data[swd@pa == 0, , drop = FALSE])
+}
+
+.get_plot_data <- function (model, var, df, cont_vars, cat_vars, n_rows, fun, 
+  marginal, type, categ) 
+{
+  data <- data.frame(matrix(NA, nrow = 1, ncol = ncol(df)))
+  colnames(data) <- colnames(df)
+  data[cont_vars] <- apply(df[cont_vars], 2, fun)
+  data[cat_vars] <- as.factor(apply(df[cat_vars], 2, raster::modal))
+  data <- do.call("rbind", replicate(n_rows, data, simplify = FALSE))
+  if (var %in% cont_vars) {
+    var_min <- min(model@data@data[var])
+    var_max <- max(model@data@data[var])
+    data[var] <- seq(var_min, var_max, length.out = n_rows)
+  }
+  else {
+    data[var] <- categ
+  }
+  if (!marginal) {
+    new_data <- model@data
+    new_data@data <- new_data@data[, var, drop = FALSE]
+    settings <- list(data = new_data)
+    model <- .create_model_from_settings(model, settings)
+  }
+  pred <- predict(model, data, type = type)
+  plot_data <- data.frame(x = data[, var], y = pred)
+  return(plot_data)
+}
+
+.create_model_from_settings <- function (model, settings, verbose = FALSE) 
+{
+  args <- .get_train_args(model)
+  args[names(settings)] <- settings
+  args$verbose <- verbose
+  output <- suppressMessages(do.call("train", args))
+  return(output)
+}
+
+.get_train_args <- function (model) 
+{
+  args <- list(data = model@data)
+  if (class(model) == "SDMmodelCV") {
+    args$folds <- model@folds
+    model <- model@models[[1]]@model
+  }
+  else {
+    args$folds <- NULL
+    model <- model@model
+  }
+  args$method <- class(model)
+  if (args$method == "Maxent") {
+    args$fc <- model@fc
+    args$reg <- model@reg
+    args$iter <- model@iter
+  }
+  else if (args$method == "Maxnet") {
+    args$fc <- model@fc
+    args$reg <- model@reg
+  }
+  else if (args$method == "ANN") {
+    args$size <- model@size
+    args$decay <- model@decay
+    args$rang <- model@rang
+    args$maxit <- model@maxit
+  }
+  else if (args$method == "RF") {
+    args$mtry <- model@mtry
+    args$ntree <- model@ntree
+    args$nodesize <- model@nodesize
+  }
+  else {
+    args$distribution <- model@distribution
+    args$n.trees <- model@n.trees
+    args$interaction.depth <- model@interaction.depth
+    args$shrinkage <- model@shrinkage
+    args$bag.fraction <- model@bag.fraction
+  }
+  return(args)
+}
+
+
+```
+
+
+
+
+

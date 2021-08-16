@@ -1,0 +1,119 @@
+---
+title: "distmatrix"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Distance matrix
+
+```{r}
+library(tidyverse)
+library(SDMtune)
+library(furrr)
+library(geosphere)
+library(vegan)
+```
+```{r}
+data.reptile <- readr::read_rds("data/newdata/data.reptile.rds")
+```
+
+
+cuz glm error
+```{r}
+newdata <- map(data.reptile, addSamplesToBg)
+```
+
+
+erase old data to get more RAM 
+```{r}
+rm(data.reptile)
+```
+
+
+get coords
+```{r}
+coords.p.reptile <- list()
+for(i in 1:length(newdata)){
+  newdata[[i]]@coords[newdata[[i]]@pa==1,] -> coords.p.reptile[[i]]}
+
+
+coords.a.reptile <- list()
+for(i in 1:length(newdata)){
+  newdata[[i]]@coords[newdata[[i]]@pa==0,] -> coords.a.reptile[[i]]}
+
+```
+
+```{r}
+num <- vector()
+for(i in 1:91){
+num[i] <- sum(newdata[[i]]@pa == 1 )}
+num
+```
+
+```{r}
+num2 <- vector()
+for(i in 1:91){
+num2[i] <- sum(newdata[[i]]@pa ==0 )}
+num2
+```
+presence that can be done 
+```{r}
+which(num < 11000)
+```
+```{r}
+which(num2 < 11000)
+```
+from 91 to 70
+```{r}
+coords.p.reptile.11k <- list()
+coords.p.reptile[which(num < 11000)] -> coords.p.reptile.11k
+coords.a.reptile[which(num < 11000)] -> coords.a.reptile.11k
+```
+
+
+
+reload CPUs
+```{r}
+future::plan(multisession, workers = 10)
+memory.limit(9999999999)
+```
+```{r}
+p.distm.mammal.21.rds <- readr::read_rds("distm/p.distm.mammal.21.rds") # only 3, 6 absent
+p.distm.mammal.21.rds <- p.distm.mammal.21.rds[-c(3,6)]
+p.distm.mammal.21.rds <- p.distm.mammal.21.rds[-5] 
+
+pcnm.p.mammal.21 <- list()
+for(i in 9:19){
+  pcnm.p.mammal.21[[i]] <- pcnm(p.distm.mammal.21.rds[[i]])
+}
+```
+
+
+```{r}
+geodistm <- function(x){as.dist(geosphere::distm(x[,1:2], fun = distGeo))}
+
+p.distm.11k_reptile <- furrr::future_map(coords.p.reptile.11k, geodistm)
+a.distm.11k_reptile <- furrr::future_map(coords.a.reptile.11k, geodistm)
+
+pcnm.p.reptile <- furrr::future_map(p.distm.11k_reptile, 
+                                      pcnm, 
+                                      .options = furrr_options(seed = TRUE), 
+                                      .progress = T)
+
+pcnm.a.reptile <- furrr::future_map(a.distm.11k_reptile, 
+                                      pcnm, 
+                                      .options = furrr_options(seed = TRUE), 
+                                      .progress = T)
+
+pcnm.p.mammal.21 <- furrr::future_map(p.distm.mammal.21.rds, 
+                                      pcnm, 
+                                      .options = furrr_options(seed = TRUE), 
+                                      .progress = T)
+```
+
+
+
+
